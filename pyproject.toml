@@ -1,0 +1,25 @@
+[project]
+name = "Twelve"
+version = "0.1.0"
+description = "Twelve"
+readme = "README.md"
+requires-python = ">=3.11, <4.0"
+dependencies = [
+]
+
+[tool.nonebot]
+adapters = [
+]
+plugins = [
+]
+plugin_dirs = ["src/plugins"]
+builtin_plugins = []
+
+[tool.pdm.dev-dependencies]
+dev = [
+]
+
+[tool.pyright]
+enableExperimentalFeatures = true
+pythonVersion = "3.11"
+pythonPlatform = "Linux"
