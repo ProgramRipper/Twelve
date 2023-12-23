@@ -3,6 +3,7 @@ import string
 from random import choices
 from typing import Any
 
+from aiocache import cached
 from httpx import AsyncClient, Response
 
 
@@ -28,6 +29,7 @@ client = AsyncClient(
 URL_PATTERN = re.compile(r"https://b23\.tv/\w+")
 
 
+@cached(60 * 60 * 24)
 async def get_short_url(oid: Any, origin: str) -> str:
     data = raise_for_status(
         await client.post(

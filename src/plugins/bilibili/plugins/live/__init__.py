@@ -83,31 +83,25 @@ async def broadcast(old_room_infos: dict[str, RoomInfo]) -> None:
         if not info["live_status"] ^ old_room_infos[str(uid)]["live_status"]:
             continue
 
+        url = await get_short_url(info["room_id"], "vertical-three-point")
+
         if info["live_status"]:
             for sub in room_subs[uid]:
-                tasks.append(broadcast_live(info, sub))
+                tasks.append(
+                    send_message(
+                        sub.session.session,
+                        config.live_template.format(url=url, **info),
+                    )
+                )
         else:
             for sub in room_subs[uid]:
-                tasks.append(broadcast_preparing(info, sub))
+                tasks.append(
+                    send_message(
+                        sub.session.session, config.preparing_template.format(**info)
+                    )
+                )
 
     await gather(*tasks)
-
-
-async def broadcast_live(info: RoomInfo, sub: Subscription) -> None:
-    await send_message(
-        sub.session.session,
-        config.live_template.format(
-            url=await get_short_url(info["room_id"], "vertical-three-point"),
-            **info,
-        ),
-    )
-
-
-def broadcast_preparing(info: RoomInfo, sub: Subscription) -> Coroutine:
-    return send_message(
-        sub.session.session,
-        config.preparing_template.format(**info),
-    )
 
 
 matcher = on_alconna(Alconna("订阅B站直播", Arg("uid", int)))

@@ -121,7 +121,9 @@ async def get_dynamics(page: int = 1) -> Dynamics:
 
 
 async def broadcast(dynamic: Dynamic):
-    screenshot = await render_screenshot(dynamic)
+    screenshot, url = await gather(
+        render_screenshot(dynamic), get_short_url(dynamic["id_str"], "dynamic")
+    )
     await gather(
         *[
             send_message(
@@ -131,7 +133,7 @@ async def broadcast(dynamic: Dynamic):
                     action=dynamic["modules"]["module_author"]["pub_action"]
                     or plugin_config.types[dynamic["type"]],
                     screenshot=Image(raw=screenshot),
-                    url=await get_short_url(dynamic["id_str"], "dynamic"),
+                    url=url,
                 ),
             )
             for sub in dynamic_subs[dynamic["modules"]["module_author"]["mid"]]
@@ -247,6 +249,4 @@ async def _(db: async_scoped_session, sess: EventSession) -> NoReturn:
     if not subs:
         await matcher.finish(f"没有订阅动态")
 
-    await matcher.finish(
-        "已订阅动态:\n" + "\n".join(f"UID:{sub.uid}" for sub in subs)
-    )
+    await matcher.finish("已订阅动态:\n" + "\n".join(f"UID:{sub.uid}" for sub in subs))
