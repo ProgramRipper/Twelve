@@ -139,7 +139,8 @@ async def get_dynamics(page: int = 1) -> Dynamics:
 
 async def broadcast(dynamic: Dynamic):
     screenshot, url = await gather(
-        render_screenshot(dynamic), get_short_url(dynamic["id_str"], "dynamic")
+        render_screenshot(dynamic),
+        get_short_url(dynamic["id_str"], "dynamic", "dt.dt-detail.0.0.pv"),
     )
     await gather(
         *[

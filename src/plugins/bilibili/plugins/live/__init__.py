@@ -83,7 +83,9 @@ async def broadcast(old_room_infos: dict[str, RoomInfo]) -> None:
         if not info["live_status"] ^ old_room_infos[str(uid)]["live_status"]:
             continue
 
-        url = await get_short_url(info["room_id"], "vertical-three-point")
+        url = await get_short_url(
+            info["room_id"], "vertical-three-point", "live.live-room-detail.0.0.pv"
+        )
 
         if info["live_status"]:
             for sub in room_subs[uid]:

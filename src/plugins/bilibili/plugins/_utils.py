@@ -1,7 +1,7 @@
 import re
 import string
 from random import choices
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from aiocache import cached
 from httpx import AsyncClient, Response
@@ -29,15 +29,14 @@ client = AsyncClient(
 URL_PATTERN = re.compile(r"https://b23\.tv/\w+")
 
 
-@cached(60 * 60 * 24)
-async def get_short_url(oid: Any, origin: str) -> str:
+async def get_short_url(oid: Any, origin: str, share_id: str) -> str:
     data = raise_for_status(
         await client.post(
             "https://api.bilibili.com/x/share/click",
             data={
                 "oid": oid,
                 "platform": "ios",
-                "share_id": " ",
+                "share_id": share_id,
                 "share_mode": 3,
                 "share_origin": origin,
                 "share_channel": "COPY",
@@ -48,3 +47,7 @@ async def get_short_url(oid: Any, origin: str) -> str:
     )
 
     return next(URL_PATTERN.finditer(data["content"])).group()
+
+
+if not TYPE_CHECKING:
+    get_short_url = cached(60 * 60 * 24)(get_short_url)
