@@ -131,6 +131,7 @@ async def _(db: async_scoped_session, sess: EventSession, uid: int) -> NoReturn:
 
     db.add(sub)
     await db.commit()
+    await db.refresh(sub, ["session"])
     room_subs[uid].add(sub)
     await matcher.finish(f"成功订阅 {info['uname']} (UID:{uid}) 的直播间 ({info['room_id']})")
 
