@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = ["cross_platform"]
 lock_version = "4.4.1"
-content_hash = "sha256:5697284c4071f9d49020891cb9c640b41c781e7066866b4c042d3d03d2d6028d"
+content_hash = "sha256:44c92c890eb3126161c842c7999ba4ee2ea1216ff01dac9e6b86ad2a2568b3d7"
 
 [[package]]
 name = "aiocache"
@@ -580,6 +580,20 @@ dependencies = [
 files = [
     {file = "nonebot_plugin_apscheduler-0.3.0-py3-none-any.whl", hash = "sha256:ec5e0267293fc9803e543c6086d3e109ac87bf6dccea5473d219cad826238aae"},
     {file = "nonebot_plugin_apscheduler-0.3.0.tar.gz", hash = "sha256:7c41cc1d49ea6af7c4518c72cd15f8c2f549071b8bc8bfc4b21fbdd0a4875cfd"},
+]
+
+[[package]]
+name = "nonebot-plugin-guild-patch"
+version = "0.2.3"
+requires_python = ">=3.7.3,<4.0.0"
+summary = "Patch plugin for NoneBot2 QQ guild (go-cqhttp) support."
+dependencies = [
+    "nonebot-adapter-onebot<3.0.0,>=2.1.0",
+    "nonebot2<3.0.0,>=2.0.0-beta.1",
+]
+files = [
+    {file = "nonebot_plugin_guild_patch-0.2.3-py3-none-any.whl", hash = "sha256:6dec5828e20dc7d9d72c8db6bb95623586df3cc8d54c6fc3ea9320f71995b1b8"},
+    {file = "nonebot_plugin_guild_patch-0.2.3.tar.gz", hash = "sha256:893e8dae0aef5d1fdbde841c14d59d8ef6e4555ec6339223e0f766172c97a6ee"},
 ]
 
 [[package]]
