@@ -20,7 +20,7 @@ class Config(BaseModel):
     template: UniMessageTemplate = UniMessage.template(
         "{name} {action}{screenshot}{url}"
     )
-    cookies: list
+    cookies: dict[str, str]
     types: dict[str, str] = {
         "DYNAMIC_TYPE_ARTICLE": "投稿了文章",
         "DYNAMIC_TYPE_AV": "投稿了视频",
