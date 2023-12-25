@@ -17,7 +17,7 @@ from nonebot_plugin_session_orm import get_session_persist_id
 from playwright.async_api import BrowserContext, Page
 from sqlalchemy import select
 
-from .....utils import run_task, send_message
+from .....utils import ADMIN, run_task, send_message
 from .._utils import get_share_click, raise_for_status
 from .config import Config
 from .models import Dynamic, Dynamics, Subscription
@@ -191,7 +191,7 @@ async def get_new_page(**kwargs) -> AsyncGenerator[Page, Any]:
         await page.close()
 
 
-matcher = on_alconna(Alconna("订阅B站动态", Arg("uid", int)))
+matcher = on_alconna(Alconna("订阅B站动态", Arg("uid", int)), permission=ADMIN)
 
 
 @matcher.handle()
@@ -219,7 +219,7 @@ async def _(db: async_scoped_session, sess: EventSession, uid: int) -> NoReturn:
     await matcher.finish(f"成功订阅 UID:{uid} 的动态")
 
 
-matcher = on_alconna(Alconna("取订B站动态", Arg("uid", int)))
+matcher = on_alconna(Alconna("取订B站动态", Arg("uid", int)), permission=ADMIN)
 
 
 @matcher.handle()
@@ -253,7 +253,7 @@ async def modify_relation(uid: int, act: int) -> None:
     )
 
 
-matcher = on_alconna(Alconna("列出B站动态"))
+matcher = on_alconna(Alconna("列出B站动态"), permission=ADMIN)
 
 
 @matcher.handle()

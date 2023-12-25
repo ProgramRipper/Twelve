@@ -14,7 +14,7 @@ from nonebot_plugin_session import EventSession
 from nonebot_plugin_session_orm import get_session_persist_id
 from sqlalchemy import select
 
-from .....utils import run_task, send_message
+from .....utils import ADMIN, run_task, send_message
 from .._utils import get_share_click, raise_for_status
 from .config import Config
 from .models import RoomInfo, Subscription
@@ -106,7 +106,7 @@ async def broadcast(old_room_infos: dict[str, RoomInfo]) -> None:
     await gather(*tasks)
 
 
-matcher = on_alconna(Alconna("订阅B站直播", Arg("uid", int)))
+matcher = on_alconna(Alconna("订阅B站直播", Arg("uid", int)), permission=ADMIN)
 
 
 @matcher.handle()
@@ -138,7 +138,7 @@ async def _(db: async_scoped_session, sess: EventSession, uid: int) -> NoReturn:
     await matcher.finish(f"成功订阅 {info['uname']} (UID:{uid}) 的直播间 ({info['room_id']})")
 
 
-matcher = on_alconna(Alconna("取订B站直播", Arg("uid", int)))
+matcher = on_alconna(Alconna("取订B站直播", Arg("uid", int)), permission=ADMIN)
 
 
 @matcher.handle()
@@ -154,7 +154,7 @@ async def _(db: async_scoped_session, sess: EventSession, uid: int) -> NoReturn:
     await matcher.finish(f"成功取消订阅 UID:{uid} 的直播间")
 
 
-matcher = on_alconna(Alconna("列出B站直播"))
+matcher = on_alconna(Alconna("列出B站直播"), permission=ADMIN)
 
 
 @matcher.handle()

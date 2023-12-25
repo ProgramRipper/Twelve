@@ -6,6 +6,13 @@ from types import NoneType
 from typing import Awaitable, TypeVar
 
 from nonebot import get_bot
+from nonebot.adapters.onebot.v11.permission import (
+    GROUP_ADMIN,
+    GROUP_OWNER,
+    PRIVATE_FRIEND,
+)
+from nonebot.adapters.qq.permission import GUILD_ADMIN, GUILD_CHANNEL_ADMIN, GUILD_OWNER
+from nonebot.permission import SUPERUSER
 from nonebot_plugin_alconna import AtAll, Target, UniMessage
 from nonebot_plugin_alconna.uniseg import Receipt
 from nonebot_plugin_session import Session, SessionIdType, SessionLevel
@@ -19,6 +26,16 @@ T = TypeVar("T")
 
 
 tasks: set[Task] = set()
+
+ADMIN = (
+    SUPERUSER
+    | PRIVATE_FRIEND
+    | GROUP_ADMIN
+    | GROUP_OWNER
+    | GUILD_CHANNEL_ADMIN
+    | GUILD_ADMIN
+    | GUILD_OWNER
+)
 
 
 async def await_(awaitable: Awaitable[T]) -> T:
