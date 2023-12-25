@@ -2,13 +2,13 @@ from asyncio import gather
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from itertools import takewhile
-from typing import Any, AsyncGenerator, NoReturn
+from typing import Any, AsyncGenerator
 
 from arclet.alconna import Arg
 from httpx import AsyncClient
 from nonebot import get_driver, logger
 from nonebot.plugin import PluginMetadata
-from nonebot_plugin_alconna import Alconna, Image, on_alconna
+from nonebot_plugin_alconna import Alconna, Image, UniMessage, on_alconna
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_htmlrender import get_browser, get_new_page
 from nonebot_plugin_orm import async_scoped_session, get_session
@@ -191,11 +191,8 @@ async def get_new_page(**kwargs) -> AsyncGenerator[Page, Any]:
         await page.close()
 
 
-matcher = on_alconna(Alconna("订阅B站动态", Arg("uid", int)), permission=ADMIN)
-
-
-@matcher.handle()
-async def _(db: async_scoped_session, sess: EventSession, uid: int) -> NoReturn:
+@on_alconna(Alconna("订阅B站动态", Arg("uid", int)), permission=ADMIN).handle()
+async def _(db: async_scoped_session, sess: EventSession, uid: int):
     if not dynamic_subs[uid]:
         try:
             if raise_for_status(await client.get("/relation", params={"fid": uid}))[
@@ -204,29 +201,26 @@ async def _(db: async_scoped_session, sess: EventSession, uid: int) -> NoReturn:
                 await modify_relation(uid, 1)
         except Exception:
             logger.error("订阅B站动态失败")
-            await matcher.send("订阅B站动态失败")
+            await UniMessage("订阅B站动态失败").send()
             raise
 
     sub = Subscription(uid=uid, session_id=await get_session_persist_id(sess))
     if sub in dynamic_subs[uid]:
-        await matcher.finish(f"已订阅 UID:{uid} 的动态")
+        return await UniMessage(f"已订阅 UID:{uid} 的动态").send()
 
     db.add(sub)
     await db.commit()
     await db.refresh(sub, ["session"])
     dynamic_subs[uid].add(sub)
 
-    await matcher.finish(f"成功订阅 UID:{uid} 的动态")
+    await UniMessage(f"成功订阅 UID:{uid} 的动态").send()
 
 
-matcher = on_alconna(Alconna("取订B站动态", Arg("uid", int)), permission=ADMIN)
-
-
-@matcher.handle()
-async def _(db: async_scoped_session, sess: EventSession, uid: int) -> NoReturn:
+@on_alconna(Alconna("取订B站动态", Arg("uid", int)), permission=ADMIN).handle()
+async def _(db: async_scoped_session, sess: EventSession, uid: int):
     sub = Subscription(uid=uid, session_id=await get_session_persist_id(sess))
     if sub not in dynamic_subs[uid]:
-        await matcher.finish(f"未订阅 UID:{uid} 的动态")
+        return await UniMessage(f"未订阅 UID:{uid} 的动态").send()
 
     await db.delete(await db.merge(sub))
     await db.commit()
@@ -241,7 +235,7 @@ async def _(db: async_scoped_session, sess: EventSession, uid: int) -> NoReturn:
         except Exception:
             logger.error("取消关注失败")
 
-    await matcher.finish(f"成功取订 UID:{uid} 的动态")
+    await UniMessage(f"成功取订 UID:{uid} 的动态").send()
 
 
 async def modify_relation(uid: int, act: int) -> None:
@@ -253,11 +247,8 @@ async def modify_relation(uid: int, act: int) -> None:
     )
 
 
-matcher = on_alconna(Alconna("列出B站动态"), permission=ADMIN)
-
-
-@matcher.handle()
-async def _(db: async_scoped_session, sess: EventSession) -> NoReturn:
+@on_alconna(Alconna("列出B站动态"), permission=ADMIN).handle()
+async def _(db: async_scoped_session, sess: EventSession):
     subs = (
         await db.scalars(
             select(Subscription).where(
@@ -266,6 +257,6 @@ async def _(db: async_scoped_session, sess: EventSession) -> NoReturn:
         )
     ).all()
     if not subs:
-        await matcher.finish(f"没有订阅动态")
+        return await UniMessage(f"没有订阅动态").send()
 
-    await matcher.finish("已订阅动态:\n" + "\n".join(f"UID:{sub.uid}" for sub in subs))
+    await UniMessage("已订阅动态:\n" + "\n".join(f"UID:{sub.uid}" for sub in subs)).send()

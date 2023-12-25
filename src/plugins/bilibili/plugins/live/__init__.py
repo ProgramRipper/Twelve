@@ -1,13 +1,12 @@
 from asyncio import gather
 from collections import defaultdict
 from collections.abc import Coroutine
-from typing import NoReturn
 
 from arclet.alconna import Arg
 from httpx import AsyncClient
 from nonebot import get_driver, logger
 from nonebot.plugin import PluginMetadata
-from nonebot_plugin_alconna import Alconna, on_alconna
+from nonebot_plugin_alconna import Alconna, UniMessage, on_alconna
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_orm import async_scoped_session, get_session
 from nonebot_plugin_session import EventSession
@@ -106,59 +105,53 @@ async def broadcast(old_room_infos: dict[str, RoomInfo]) -> None:
     await gather(*tasks)
 
 
-matcher = on_alconna(Alconna("订阅B站直播", Arg("uid", int)), permission=ADMIN)
-
-
-@matcher.handle()
-async def _(db: async_scoped_session, sess: EventSession, uid: int) -> NoReturn:
+@on_alconna(Alconna("订阅B站直播", Arg("uid", int)), permission=ADMIN).handle()
+async def _(db: async_scoped_session, sess: EventSession, uid: int):
     try:
         data = raise_for_status(
             await client.post(GET_ROOM_STATUS_INFO_URL, json={"uids": [uid]})
         )
     except Exception:
         logger.error("获取直播间信息失败")
-        await matcher.send("获取直播间信息失败")
+        await UniMessage("获取直播间信息失败").send()
         raise
 
     try:
         room_infos[str(uid)] = info = data[str(uid)]
     except KeyError:
-        await matcher.finish(f"用户不存在或未开通直播间")
+        return await UniMessage(f"用户不存在或未开通直播间").send()
 
     sub = Subscription(uid=uid, session_id=await get_session_persist_id(sess))
     if sub in room_subs[uid]:
-        await matcher.finish(
+        return await UniMessage(
             f"已订阅 {info['uname']} (UID:{uid}) 的直播间 ({info['room_id']})"
-        )
+        ).send()
 
     db.add(sub)
     await db.commit()
     await db.refresh(sub, ["session"])
     room_subs[uid].add(sub)
-    await matcher.finish(f"成功订阅 {info['uname']} (UID:{uid}) 的直播间 ({info['room_id']})")
+
+    await UniMessage(
+        f"成功订阅 {info['uname']} (UID:{uid}) 的直播间 ({info['room_id']})"
+    ).send()
 
 
-matcher = on_alconna(Alconna("取订B站直播", Arg("uid", int)), permission=ADMIN)
-
-
-@matcher.handle()
-async def _(db: async_scoped_session, sess: EventSession, uid: int) -> NoReturn:
+@on_alconna(Alconna("取订B站直播", Arg("uid", int)), permission=ADMIN).handle()
+async def _(db: async_scoped_session, sess: EventSession, uid: int):
     sub = Subscription(uid=uid, session_id=await get_session_persist_id(sess))
     if sub not in room_subs[uid]:
-        await matcher.finish(f"未订阅 UID:{uid} 的直播间")
+        return await UniMessage(f"未订阅 UID:{uid} 的直播间").send()
 
     await db.delete(await db.merge(sub))
     await db.commit()
     room_subs[uid].remove(sub)
 
-    await matcher.finish(f"成功取消订阅 UID:{uid} 的直播间")
+    await UniMessage(f"成功取消订阅 UID:{uid} 的直播间").send()
 
 
-matcher = on_alconna(Alconna("列出B站直播"), permission=ADMIN)
-
-
-@matcher.handle()
-async def _(db: async_scoped_session, sess: EventSession) -> NoReturn:
+@on_alconna(Alconna("列出B站直播"), permission=ADMIN).handle()
+async def _(db: async_scoped_session, sess: EventSession):
     subs = (
         await db.scalars(
             select(Subscription).where(
@@ -166,12 +159,13 @@ async def _(db: async_scoped_session, sess: EventSession) -> NoReturn:
             )
         )
     ).all()
-    if not subs:
-        await matcher.finish(f"没有订阅直播间")
 
-    await matcher.finish(
+    if not subs:
+        return await UniMessage(f"没有订阅直播间").send()
+
+    await UniMessage(
         "已订阅直播间:\n"
         + "\n".join(
             "{uname} (UID:{uid})".format_map(room_infos[str(sub.uid)]) for sub in subs
         )
-    )
+    ).send()
