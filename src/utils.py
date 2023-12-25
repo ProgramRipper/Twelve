@@ -2,25 +2,24 @@ from asyncio import Task, create_task
 from collections.abc import Callable
 from inspect import iscoroutine
 from operator import itemgetter
-from types import NoneType
-from typing import Awaitable, TypeVar
+from re import Match
+from typing import Any, Awaitable, Literal, TypeVar, overload
 
 from nonebot import get_bot
+from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
 from nonebot.adapters.onebot.v11.permission import (
     GROUP_ADMIN,
     GROUP_OWNER,
     PRIVATE_FRIEND,
 )
 from nonebot.adapters.qq.permission import GUILD_ADMIN, GUILD_CHANNEL_ADMIN, GUILD_OWNER
+from nonebot.consts import REGEX_MATCHED
+from nonebot.params import Depends
 from nonebot.permission import SUPERUSER
+from nonebot.typing import T_State
 from nonebot_plugin_alconna import AtAll, Target, UniMessage
 from nonebot_plugin_alconna.uniseg import Receipt
 from nonebot_plugin_session import Session, SessionIdType, SessionLevel
-
-try:
-    from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
-except ImportError:
-    OneBot11Bot = NoneType
 
 T = TypeVar("T")
 
@@ -95,3 +94,40 @@ async def send_message(sess: Session, msg: UniMessage) -> Receipt:
 
 def with_prefix(prefix: str) -> Callable[[str], str]:
     return lambda name: f"{prefix}_{name}"
+
+
+def _regex_matched(state: T_State) -> Match[str]:
+    return state[REGEX_MATCHED]
+
+
+def _regex_str(
+    groups: tuple[str | int, ...]
+) -> Callable[[T_State], str | tuple[str | Any, ...] | Any]:
+    def _regex_str_dependency(
+        state: T_State,
+    ) -> str | tuple[str | Any, ...] | Any:
+        return _regex_matched(state).group(*groups)
+
+    return _regex_str_dependency
+
+
+@overload
+def RegexStr(__group: Literal[0] = 0) -> str:
+    ...
+
+
+@overload
+def RegexStr(__group: str | int) -> str | Any:
+    ...
+
+
+@overload
+def RegexStr(
+    __group1: str | int, __group2: str | int, *groups: str | int
+) -> tuple[str | Any, ...]:
+    ...
+
+
+def RegexStr(*groups: str | int) -> str | tuple[str | Any, ...] | Any:
+    """正则匹配结果文本"""
+    return Depends(_regex_str(groups), use_cache=False)
