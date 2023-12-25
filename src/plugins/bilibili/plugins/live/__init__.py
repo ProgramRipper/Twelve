@@ -15,7 +15,7 @@ from nonebot_plugin_session_orm import get_session_persist_id
 from sqlalchemy import select
 
 from .....utils import run_task, send_message
-from .._utils import get_short_url, raise_for_status
+from .._utils import get_share_click, raise_for_status
 from .config import Config
 from .models import RoomInfo, Subscription
 
@@ -83,7 +83,7 @@ async def broadcast(old_room_infos: dict[str, RoomInfo]) -> None:
         if not info["live_status"] ^ old_room_infos[str(uid)]["live_status"]:
             continue
 
-        url = await get_short_url(
+        url = await get_share_click(
             info["room_id"], "vertical-three-point", "live.live-room-detail.0.0.pv"
         )
 

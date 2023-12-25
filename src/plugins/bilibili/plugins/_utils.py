@@ -29,7 +29,7 @@ client = AsyncClient(
 URL_PATTERN = re.compile(r"https://b23\.tv/\w+")
 
 
-async def get_short_url(oid: Any, origin: str, share_id: str) -> str:
+async def get_share_click(oid: Any, origin: str, share_id: str) -> str:
     data = raise_for_status(
         await client.post(
             "https://api.bilibili.com/x/share/click",
@@ -50,4 +50,4 @@ async def get_short_url(oid: Any, origin: str, share_id: str) -> str:
 
 
 if not TYPE_CHECKING:
-    get_short_url = cached(60 * 60 * 24)(get_short_url)
+    get_share_click = cached(60 * 60 * 24)(get_share_click)

@@ -18,7 +18,7 @@ from playwright.async_api import BrowserContext, Page
 from sqlalchemy import select
 
 from .....utils import run_task, send_message
-from .._utils import get_short_url, raise_for_status
+from .._utils import get_share_click, raise_for_status
 from .config import Config
 from .models import Dynamic, Dynamics, Subscription
 
@@ -140,7 +140,7 @@ async def get_dynamics(page: int = 1) -> Dynamics:
 async def broadcast(dynamic: Dynamic):
     screenshot, url = await gather(
         render_screenshot(dynamic),
-        get_short_url(dynamic["id_str"], "dynamic", "dt.dt-detail.0.0.pv"),
+        get_share_click(dynamic["id_str"], "dynamic", "dt.dt-detail.0.0.pv"),
     )
     await gather(
         *[
