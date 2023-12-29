@@ -165,10 +165,10 @@ async def render_screenshot(dynamic: Dynamic) -> bytes:
         await page.wait_for_load_state("networkidle")
 
         if "opus" in page.url:
-            remove = ".float-openapp,.openapp-dialog"
+            remove = ".opus-nav,.float-openapp,.openapp-dialog"
             target = ".opus-modules"
         elif "dynamic" in page.url:
-            remove = ".dynamic-float-openapp,.dyn-share"
+            remove = ".m-navbar,.dynamic-float-openapp,.dyn-share"
             target = ".dyn-card"
         else:
             remove = ""
