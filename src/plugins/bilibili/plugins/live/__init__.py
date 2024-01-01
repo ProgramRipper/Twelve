@@ -30,7 +30,7 @@ global_config = driver.config
 config = Config.parse_obj(global_config)
 
 room_infos: dict[str, RoomInfo] = {}
-room_subs: dict[int, set[Subscription]] = defaultdict(set)
+room_subs: dict[str, set[Subscription]] = defaultdict(set)
 client = AsyncClient(
     headers={
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -49,7 +49,7 @@ async def _() -> None:
 
     async with get_session() as session:
         for sub in await session.scalars(select(Subscription)):
-            room_subs[sub.uid].add(sub)
+            room_subs[str(sub.uid)].add(sub)
 
     if not room_subs:
         return
@@ -66,27 +66,33 @@ async def _() -> None:
     if not (room_infos and (uids := list(filter(room_subs.__getitem__, room_subs)))):
         return
 
-    old_room_infos, room_infos = room_infos, raise_for_status(
+    curr_room_infos = raise_for_status(
         await client.post(GET_ROOM_STATUS_INFO_URL, json={"uids": uids})
     )
 
-    run_task(broadcast(old_room_infos))
+    run_task(
+        broadcast(
+            [
+                uid
+                for uid in uids
+                if curr_room_infos[uid]["live_status"] ^ room_infos[uid]["live_status"]
+            ]
+        )
+    )
+
+    room_infos = curr_room_infos
 
 
-async def broadcast(old_room_infos: dict[str, RoomInfo]) -> None:
+async def broadcast(uids: list[str]) -> None:
     tasks: list[Coroutine] = []
 
-    for uid, info in room_infos.items():
-        uid = int(uid)
-
-        if not info["live_status"] ^ old_room_infos[str(uid)]["live_status"]:
-            continue
-
-        url = await get_share_click(
-            info["room_id"], "vertical-three-point", "live.live-room-detail.0.0.pv"
-        )
+    for uid in uids:
+        info = room_infos[uid]
 
         if info["live_status"]:
+            url = await get_share_click(
+                info["room_id"], "vertical-three-point", "live.live-room-detail.0.0.pv"
+            )
             for sub in room_subs[uid]:
                 tasks.append(
                     send_message(
@@ -105,10 +111,11 @@ async def broadcast(old_room_infos: dict[str, RoomInfo]) -> None:
     await gather(*tasks)
 
 
-@on_alconna(Alconna("订阅B站直播", Arg("uid", int)), permission=ADMIN).handle()
-async def _(db: async_scoped_session, sess: EventSession, uid: int):
+@on_alconna(Alconna("订阅B站直播", Arg("uid", r"re:UID:\d+")), permission=ADMIN).handle()
+async def _(db: async_scoped_session, sess: EventSession, uid: str):
+    uid = uid.removeprefix("UID:")
     try:
-        data = raise_for_status(
+        infos = raise_for_status(
             await client.post(GET_ROOM_STATUS_INFO_URL, json={"uids": [uid]})
         )
     except Exception:
@@ -117,11 +124,11 @@ async def _(db: async_scoped_session, sess: EventSession, uid: int):
         raise
 
     try:
-        room_infos[str(uid)] = info = data[str(uid)]
+        info = infos[uid]
     except KeyError:
         return await UniMessage(f"用户不存在或未开通直播间").send()
 
-    sub = Subscription(uid=uid, session_id=await get_session_persist_id(sess))
+    sub = Subscription(uid=int(uid), session_id=await get_session_persist_id(sess))
     if sub in room_subs[uid]:
         return await UniMessage(
             f"已订阅 {info['uname']} (UID:{uid}) 的直播间 ({info['room_id']})"
@@ -131,15 +138,17 @@ async def _(db: async_scoped_session, sess: EventSession, uid: int):
     await db.commit()
     await db.refresh(sub, ["session"])
     room_subs[uid].add(sub)
+    room_infos[uid] = info
 
     await UniMessage(
         f"成功订阅 {info['uname']} (UID:{uid}) 的直播间 ({info['room_id']})"
     ).send()
 
 
-@on_alconna(Alconna("取订B站直播", Arg("uid", int)), permission=ADMIN).handle()
-async def _(db: async_scoped_session, sess: EventSession, uid: int):
-    sub = Subscription(uid=uid, session_id=await get_session_persist_id(sess))
+@on_alconna(Alconna("取订B站直播", Arg("uid", r"re:UID:\d+")), permission=ADMIN).handle()
+async def _(db: async_scoped_session, sess: EventSession, uid: str):
+    uid = uid.removeprefix("UID:")
+    sub = Subscription(uid=int(uid), session_id=await get_session_persist_id(sess))
     if sub not in room_subs[uid]:
         return await UniMessage(f"未订阅 UID:{uid} 的直播间").send()
 

@@ -36,7 +36,7 @@ plugin_config = Config.parse_obj(global_config)
 
 context: BrowserContext
 update_baseline: str = ""
-dynamic_subs: dict[int, set[Subscription]] = defaultdict(set)
+dynamic_subs: dict[str, set[Subscription]] = defaultdict(set)
 client = AsyncClient(
     headers={
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -75,7 +75,7 @@ async def _() -> None:
 
     async with get_session() as session:
         for sub in await session.scalars(select(Subscription)):
-            dynamic_subs[sub.uid].add(sub)
+            dynamic_subs[str(sub.uid)].add(sub)
 
 
 @scheduler.scheduled_job("interval", seconds=plugin_config.interval)
@@ -154,7 +154,7 @@ async def broadcast(dynamic: Dynamic):
                     url=url,
                 ),
             )
-            for sub in dynamic_subs[dynamic["modules"]["module_author"]["mid"]]
+            for sub in dynamic_subs[str(dynamic["modules"]["module_author"]["mid"])]
         ]
     )
 
@@ -167,6 +167,9 @@ async def render_screenshot(dynamic: Dynamic) -> bytes:
         if "opus" in page.url:
             remove = ".opus-nav,.float-openapp,.openapp-dialog"
             target = ".opus-modules"
+            await page.locator(".opus-module-content.limit").evaluate(
+                "e => e.classList.remove('limit')"
+            )
         elif "dynamic" in page.url:
             remove = ".m-navbar,.dynamic-float-openapp,.dyn-share"
             target = ".dyn-card"
@@ -191,8 +194,9 @@ async def get_new_page(**kwargs) -> AsyncGenerator[Page, Any]:
         await page.close()
 
 
-@on_alconna(Alconna("订阅B站动态", Arg("uid", int)), permission=ADMIN).handle()
-async def _(db: async_scoped_session, sess: EventSession, uid: int):
+@on_alconna(Alconna("订阅B站动态", Arg("uid", r"re:UID:\d+")), permission=ADMIN).handle()
+async def _(db: async_scoped_session, sess: EventSession, uid: str):
+    uid = uid.removeprefix("UID:")
     if not dynamic_subs[uid]:
         try:
             if raise_for_status(await client.get("/relation", params={"fid": uid}))[
@@ -204,7 +208,7 @@ async def _(db: async_scoped_session, sess: EventSession, uid: int):
             await UniMessage("订阅B站动态失败").send()
             raise
 
-    sub = Subscription(uid=uid, session_id=await get_session_persist_id(sess))
+    sub = Subscription(uid=int(uid), session_id=await get_session_persist_id(sess))
     if sub in dynamic_subs[uid]:
         return await UniMessage(f"已订阅 UID:{uid} 的动态").send()
 
@@ -216,9 +220,10 @@ async def _(db: async_scoped_session, sess: EventSession, uid: int):
     await UniMessage(f"成功订阅 UID:{uid} 的动态").send()
 
 
-@on_alconna(Alconna("取订B站动态", Arg("uid", int)), permission=ADMIN).handle()
-async def _(db: async_scoped_session, sess: EventSession, uid: int):
-    sub = Subscription(uid=uid, session_id=await get_session_persist_id(sess))
+@on_alconna(Alconna("取订B站动态", Arg("uid", r"re:UID:\d+")), permission=ADMIN).handle()
+async def _(db: async_scoped_session, sess: EventSession, uid: str):
+    uid = uid.removeprefix("UID:")
+    sub = Subscription(uid=int(uid), session_id=await get_session_persist_id(sess))
     if sub not in dynamic_subs[uid]:
         return await UniMessage(f"未订阅 UID:{uid} 的动态").send()
 
@@ -238,7 +243,7 @@ async def _(db: async_scoped_session, sess: EventSession, uid: int):
     await UniMessage(f"成功取订 UID:{uid} 的动态").send()
 
 
-async def modify_relation(uid: int, act: int) -> None:
+async def modify_relation(uid: str, act: int) -> None:
     raise_for_status(
         await client.post(
             "/relation/modify",

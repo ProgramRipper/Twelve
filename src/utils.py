@@ -75,7 +75,7 @@ def session_to_target(sess: Session) -> Target:
 
 
 async def send_message(sess: Session, msg: UniMessage) -> Receipt:
-    bot = get_bot()
+    bot = get_bot(sess.bot_id)
     target = session_to_target(sess)
 
     if isinstance(bot, OneBot11Bot) and not target.private and AtAll in msg:
