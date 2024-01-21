@@ -1,13 +1,13 @@
-from asyncio import gather
+from asyncio import Task, gather
 from collections import defaultdict
 from collections.abc import Coroutine
+from typing import NoReturn
 
 from arclet.alconna import Arg
 from httpx import AsyncClient
 from nonebot import get_driver, logger
 from nonebot.plugin import PluginMetadata
 from nonebot_plugin_alconna import Alconna, UniMessage, on_alconna
-from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_orm import async_scoped_session, get_session
 from nonebot_plugin_session import EventSession
 from nonebot_plugin_session_orm import get_session_persist_id
@@ -15,6 +15,7 @@ from sqlalchemy import select
 
 from .....utils import ADMIN, run_task, send_message
 from .._utils import get_share_click, raise_for_status
+from .blv import connect
 from .config import Config
 from .models import RoomInfo, Subscription
 
@@ -29,7 +30,7 @@ driver = get_driver()
 global_config = driver.config
 config = Config.parse_obj(global_config)
 
-room_infos: dict[str, RoomInfo] = {}
+tasks: dict[str, Task] = {}
 room_subs: dict[str, set[Subscription]] = defaultdict(set)
 client = AsyncClient(
     headers={
@@ -45,8 +46,6 @@ GET_ROOM_STATUS_INFO_URL = (
 
 @driver.on_startup
 async def _() -> None:
-    global room_infos
-
     async with get_session() as session:
         for sub in await session.scalars(select(Subscription)):
             room_subs[str(sub.uid)].add(sub)
@@ -54,68 +53,58 @@ async def _() -> None:
     if not room_subs:
         return
 
-    room_infos = raise_for_status(
+    infos: dict[str, RoomInfo] = raise_for_status(
         await client.post(GET_ROOM_STATUS_INFO_URL, json={"uids": list(room_subs)})
     )
-
-
-@scheduler.scheduled_job("interval", seconds=config.interval)
-async def _() -> None:
-    global room_infos
-
-    if not (room_infos and (uids := list(filter(room_subs.__getitem__, room_subs)))):
-        return
-
-    curr_room_infos = raise_for_status(
-        await client.post(GET_ROOM_STATUS_INFO_URL, json={"uids": uids})
+    tasks.update(
+        {uid: run_task(broadcast_task(uid, infos[uid]["room_id"])) for uid in room_subs}
     )
 
-    run_task(
-        broadcast(
-            [
-                uid
-                for uid in uids
-                if curr_room_infos[uid]["live_status"] ^ room_infos[uid]["live_status"]
-            ]
-        )
-    )
 
-    room_infos = curr_room_infos
+async def broadcast_task(uid: str, roomid: int) -> NoReturn:
+    async for event in connect(roomid):
+        match event["cmd"]:
+            case "LIVE" if event["live_time"] is None:
+                pass
+            case "LIVE" | "PREPARING":
+                await broadcast(uid)
 
 
-async def broadcast(uids: list[str]) -> None:
+async def broadcast(uid: str) -> None:
     tasks: list[Coroutine] = []
+    info: RoomInfo = raise_for_status(
+        await client.post(GET_ROOM_STATUS_INFO_URL, json={"uids": [uid]})
+    )[uid]
 
-    for uid in uids:
-        info = room_infos[uid]
-
-        if info["live_status"]:
-            url = await get_share_click(
-                info["room_id"], "vertical-three-point", "live.live-room-detail.0.0.pv"
+    if info["live_status"]:
+        url = await get_share_click(
+            info["room_id"], "vertical-three-point", "live.live-room-detail.0.0.pv"
+        )
+        for sub in room_subs[uid]:
+            tasks.append(
+                send_message(
+                    sub.session.session,
+                    config.live_template.format(url=url, **info),
+                )
             )
-            for sub in room_subs[uid]:
-                tasks.append(
-                    send_message(
-                        sub.session.session,
-                        config.live_template.format(url=url, **info),
-                    )
+    else:
+        for sub in room_subs[uid]:
+            tasks.append(
+                send_message(
+                    sub.session.session, config.preparing_template.format(**info)
                 )
-        else:
-            for sub in room_subs[uid]:
-                tasks.append(
-                    send_message(
-                        sub.session.session, config.preparing_template.format(**info)
-                    )
-                )
+            )
 
     await gather(*tasks)
 
 
-@on_alconna(Alconna("订阅B站直播", Arg("uid", r"re:UID:\d+")), permission=ADMIN).handle()
+@on_alconna(
+    Alconna("订阅B站直播", Arg("uid", r"re:(?:UID:)?\d+")), permission=ADMIN
+).handle()
 async def _(db: async_scoped_session, sess: EventSession, uid: str):
     uid = uid.removeprefix("UID:")
     try:
-        infos = raise_for_status(
+        infos: dict[str, RoomInfo] = raise_for_status(
             await client.post(GET_ROOM_STATUS_INFO_URL, json={"uids": [uid]})
         )
     except Exception:
@@ -124,28 +113,28 @@ async def _(db: async_scoped_session, sess: EventSession, uid: str):
         raise
 
     try:
-        info = infos[uid]
+        roomid = infos[uid]["room_id"]
     except KeyError:
         return await UniMessage(f"用户不存在或未开通直播间").send()
 
     sub = Subscription(uid=int(uid), session_id=await get_session_persist_id(sess))
     if sub in room_subs[uid]:
-        return await UniMessage(
-            f"已订阅 {info['uname']} (UID:{uid}) 的直播间 ({info['room_id']})"
-        ).send()
+        return await UniMessage(f"已订阅 UID:{uid} 的直播间").send()
 
     db.add(sub)
     await db.commit()
     await db.refresh(sub, ["session"])
     room_subs[uid].add(sub)
-    room_infos[uid] = info
 
-    await UniMessage(
-        f"成功订阅 {info['uname']} (UID:{uid}) 的直播间 ({info['room_id']})"
-    ).send()
+    if uid not in tasks:
+        tasks[uid] = run_task(broadcast_task(uid, roomid))
+
+    await UniMessage(f"成功订阅 UID:{uid} 的直播间").send()
 
 
-@on_alconna(Alconna("取订B站直播", Arg("uid", r"re:UID:\d+")), permission=ADMIN).handle()
+@on_alconna(
+    Alconna("取订B站直播", Arg("uid", r"re:(?:UID:)?\d+")), permission=ADMIN
+).handle()
 async def _(db: async_scoped_session, sess: EventSession, uid: str):
     uid = uid.removeprefix("UID:")
     sub = Subscription(uid=int(uid), session_id=await get_session_persist_id(sess))
@@ -155,6 +144,9 @@ async def _(db: async_scoped_session, sess: EventSession, uid: str):
     await db.delete(await db.merge(sub))
     await db.commit()
     room_subs[uid].remove(sub)
+
+    if not room_subs[uid]:
+        tasks.pop(uid).cancel()
 
     await UniMessage(f"成功取消订阅 UID:{uid} 的直播间").send()
 
@@ -172,9 +164,4 @@ async def _(db: async_scoped_session, sess: EventSession):
     if not subs:
         return await UniMessage(f"没有订阅直播间").send()
 
-    await UniMessage(
-        "已订阅直播间:\n"
-        + "\n".join(
-            "{uname} (UID:{uid})".format_map(room_infos[str(sub.uid)]) for sub in subs
-        )
-    ).send()
+    await UniMessage("已订阅直播间:\n" + "\n".join(f"UID:{sub.uid}" for sub in subs)).send()

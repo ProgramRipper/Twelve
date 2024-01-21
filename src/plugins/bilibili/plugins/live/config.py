@@ -6,7 +6,6 @@ from src.utils import with_prefix
 
 
 class Config(BaseModel):
-    interval: int = 1
     live_template: UniMessageTemplate = UniMessage.template(
         "{:AtAll()} {uname} 正在直播 {title}{:Image(url=cover_from_user)}{url}"
     )
