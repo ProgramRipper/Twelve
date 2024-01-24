@@ -1,6 +1,7 @@
 from asyncio import gather
 from collections import defaultdict
 from collections.abc import Coroutine
+from time import time
 
 from arclet.alconna import Arg
 from httpx import AsyncClient
@@ -80,7 +81,7 @@ async def _() -> None:
         )
     )
 
-    room_infos = curr_room_infos
+    room_infos.update(curr_room_infos)
 
 
 async def broadcast(uids: list[str]) -> None:
@@ -89,7 +90,9 @@ async def broadcast(uids: list[str]) -> None:
     for uid in uids:
         info = room_infos[uid]
 
-        if info["live_status"]:
+        if info["live_status"] and time() - info["live_time"] < max(
+            config.interval, 10
+        ):
             url = await get_share_click(
                 info["room_id"], "vertical-three-point", "live.live-room-detail.0.0.pv"
             )

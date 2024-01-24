@@ -14,7 +14,7 @@ __plugin_meta__ = PluginMetadata(
 )
 
 global_config = get_driver().config
-config = Config.parse_obj(global_config)
+plugin_config = Config.parse_obj(global_config)
 
 sub_plugins = nonebot.load_plugins(
     str(Path(__file__).parent.joinpath("plugins").resolve())

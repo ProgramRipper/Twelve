@@ -10,6 +10,7 @@ class RoomInfo(TypedDict):
     title: str
     room_id: int
     uid: int
+    live_time: int
     live_status: int
     uname: str
     cover_from_user: str

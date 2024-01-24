@@ -18,6 +18,7 @@ from playwright.async_api import BrowserContext, Page
 from sqlalchemy import select
 
 from .....utils import ADMIN, run_task, send_message
+from ... import plugin_config as bilibili_config
 from .._utils import get_share_click, raise_for_status
 from .config import Config
 from .models import Dynamic, Dynamics, Subscription
@@ -42,7 +43,7 @@ client = AsyncClient(
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0"
     },
-    cookies=plugin_config.cookies,
+    cookies=bilibili_config.cookies,
     base_url="https://api.bilibili.com/x",
 )
 
@@ -55,14 +56,14 @@ async def _() -> None:
     await context.add_cookies(
         [
             {"name": name, "value": value, "domain": ".bilibili.com", "path": "/"}
-            for name, value in plugin_config.cookies.items()
+            for name, value in bilibili_config.cookies.items()
         ]
     )
     await context.add_cookies(
         [
             {
                 "name": "SESSDATA",
-                "value": plugin_config.cookies["SESSDATA"],
+                "value": bilibili_config.cookies["SESSDATA"],
                 "domain": ".bilibili.com",
                 "path": "/",
                 "httpOnly": True,

@@ -1,5 +1,12 @@
-from pydantic import BaseModel, Extra
+from pydantic import BaseConfig, BaseModel, Extra
+
+from ...utils import with_prefix
 
 
-class Config(BaseModel, extra=Extra.ignore):
-    """Plugin Config Here"""
+class Config(BaseModel):
+    cookies: dict[str, str]
+
+    class Config(BaseConfig):
+        alias_generator = with_prefix("bilibili")
+        arbitrary_types_allowed = True
+        extra = Extra.ignore
