@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from itertools import takewhile
 from typing import Any, AsyncGenerator
 
+import backoff
 from arclet.alconna import Arg
 from httpx import AsyncClient
 from nonebot import get_driver, logger
@@ -14,7 +15,7 @@ from nonebot_plugin_htmlrender import get_browser, get_new_page
 from nonebot_plugin_orm import async_scoped_session, get_session
 from nonebot_plugin_session import EventSession
 from nonebot_plugin_session_orm import get_session_persist_id
-from playwright.async_api import BrowserContext, Page
+from playwright.async_api import BrowserContext, Page, TimeoutError
 from sqlalchemy import select
 
 from .....utils import ADMIN, run_task, send_message
@@ -160,6 +161,7 @@ async def broadcast(dynamic: Dynamic):
     )
 
 
+@backoff.on_exception(backoff.constant, TimeoutError, max_tries=3)
 async def render_screenshot(dynamic: Dynamic) -> bytes:
     async with get_new_page() as page:
         await page.goto(f"https://t.bilibili.com/{dynamic['id_str']}")
