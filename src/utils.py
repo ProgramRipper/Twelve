@@ -12,7 +12,6 @@ from nonebot.adapters.onebot.v11.permission import (
     GROUP_OWNER,
     PRIVATE_FRIEND,
 )
-from nonebot.adapters.qq.permission import GUILD_ADMIN, GUILD_CHANNEL_ADMIN, GUILD_OWNER
 from nonebot.consts import REGEX_MATCHED
 from nonebot.params import Depends
 from nonebot.permission import SUPERUSER
@@ -26,15 +25,7 @@ T = TypeVar("T")
 
 tasks: set[Task] = set()
 
-ADMIN = (
-    SUPERUSER
-    | PRIVATE_FRIEND
-    | GROUP_ADMIN
-    | GROUP_OWNER
-    | GUILD_CHANNEL_ADMIN
-    | GUILD_ADMIN
-    | GUILD_OWNER
-)
+ADMIN = SUPERUSER | PRIVATE_FRIEND | GROUP_ADMIN | GROUP_OWNER
 
 
 async def await_(awaitable: Awaitable[T]) -> T:
