@@ -1,13 +1,15 @@
 from asyncio import gather
 from collections import defaultdict
 from contextlib import asynccontextmanager
-from itertools import takewhile
+from itertools import compress, repeat
+from operator import itemgetter, not_
 from typing import Any, AsyncGenerator
 
 import backoff
+from aiocache import SimpleMemoryCache
 from arclet.alconna import Arg
 from httpx import AsyncClient
-from nonebot import get_driver, logger
+from nonebot import get_driver, get_plugin_config, logger
 from nonebot.plugin import PluginMetadata
 from nonebot_plugin_alconna import Alconna, Image, UniMessage, on_alconna
 from nonebot_plugin_apscheduler import scheduler
@@ -33,12 +35,12 @@ __plugin_meta__ = PluginMetadata(
 
 driver = get_driver()
 global_config = get_driver().config
-plugin_config = Config.parse_obj(global_config)
+plugin_config = get_plugin_config(Config)
 
 
 context: BrowserContext
-update_baseline: str = ""
 dynamic_subs: dict[str, set[Subscription]] = defaultdict(set)
+cache = SimpleMemoryCache()
 client = AsyncClient(
     headers={
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -51,7 +53,7 @@ client = AsyncClient(
 
 @driver.on_startup
 async def _() -> None:
-    global context, update_baseline
+    global context
 
     context = await (await get_browser()).new_context(**plugin_config.screenshot_device)
     await context.add_cookies(
@@ -73,7 +75,8 @@ async def _() -> None:
         ]
     )
 
-    update_baseline = (await get_dynamics())["update_baseline"]
+    data = await get_dynamics()
+    await cache.multi_set(zip(map(itemgetter("id_str"), data["items"]), repeat(True)))
 
     async with get_session() as session:
         for sub in await session.scalars(select(Subscription)):
@@ -82,41 +85,20 @@ async def _() -> None:
 
 @scheduler.scheduled_job("interval", seconds=plugin_config.interval)
 async def _() -> None:
-    global update_baseline
-
     if not next(filter(dynamic_subs.__getitem__, dynamic_subs), None):
         return
 
-    update_num: int = raise_for_status(
-        await client.get(
-            "/polymer/web-dynamic/v1/feed/all/update",
-            params={"type": "all", "update_baseline": update_baseline},
-        )
-    )["update_num"]
-    if not update_num:
-        return
+    data = await get_dynamics()
 
-    data: Dynamics = None  # type:ignore
-    dynamics: list[Dynamic] = []
-    has_more: bool = True
-    page = 1
+    ids = [item["id_str"] for item in data["items"]]
+    selectors = list(map(not_, await cache.multi_get(ids)))
+    await cache.multi_set(zip(ids, repeat(True)), 10 * 60)
 
-    while has_more and len(dynamics) < update_num:
-        data = await get_dynamics(page)
-
-        update_num = data["update_num"]
-        dynamics.extend(
-            takewhile(lambda d: d["id_str"] > update_baseline, data["items"])
-        )
-        has_more = data["has_more"]
-        page += 1
-
-    update_baseline = data["update_baseline"]
     run_task(
         gather(
             *(
                 broadcast(dynamic)
-                for dynamic in dynamics
+                for dynamic in compress(data["items"], selectors)
                 if dynamic["type"] in plugin_config.types
             )
         )
@@ -129,7 +111,6 @@ async def get_dynamics(page: int = 1) -> Dynamics:
             "/polymer/web-dynamic/v1/feed/all",
             params={
                 "type": "all",
-                "update_baseline": update_baseline,
                 "page": page,
                 "features": ",".join(
                     ("itemOpusStyle", "listOnlyfans", "opusBigCover", "onlyfansVote")
@@ -197,7 +178,9 @@ async def get_new_page(**kwargs) -> AsyncGenerator[Page, Any]:
         await page.close()
 
 
-@on_alconna(Alconna("订阅B站动态", Arg("uid", r"re:UID:\d+")), permission=ADMIN).handle()
+@on_alconna(
+    Alconna("订阅B站动态", Arg("uid", r"re:(?:UID:)?\d+")), permission=ADMIN
+).handle()
 async def _(db: async_scoped_session, sess: EventSession, uid: str):
     uid = uid.removeprefix("UID:")
     if not dynamic_subs[uid]:
@@ -223,7 +206,9 @@ async def _(db: async_scoped_session, sess: EventSession, uid: str):
     await UniMessage(f"成功订阅 UID:{uid} 的动态").send()
 
 
-@on_alconna(Alconna("取订B站动态", Arg("uid", r"re:UID:\d+")), permission=ADMIN).handle()
+@on_alconna(
+    Alconna("取订B站动态", Arg("uid", r"re:(?:UID:)?\d+")), permission=ADMIN
+).handle()
 async def _(db: async_scoped_session, sess: EventSession, uid: str):
     uid = uid.removeprefix("UID:")
     sub = Subscription(uid=int(uid), session_id=await get_session_persist_id(sess))

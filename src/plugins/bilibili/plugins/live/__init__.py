@@ -5,7 +5,7 @@ from time import time
 
 from arclet.alconna import Arg
 from httpx import AsyncClient
-from nonebot import get_driver, logger
+from nonebot import get_driver, get_plugin_config, logger
 from nonebot.plugin import PluginMetadata
 from nonebot_plugin_alconna import Alconna, UniMessage, on_alconna
 from nonebot_plugin_apscheduler import scheduler
@@ -28,7 +28,7 @@ __plugin_meta__ = PluginMetadata(
 
 driver = get_driver()
 global_config = driver.config
-config = Config.parse_obj(global_config)
+plugin_config = get_plugin_config(Config)
 
 room_infos: dict[str, RoomInfo] = {}
 room_subs: dict[str, set[Subscription]] = defaultdict(set)
@@ -60,7 +60,7 @@ async def _() -> None:
     )
 
 
-@scheduler.scheduled_job("interval", seconds=config.interval)
+@scheduler.scheduled_job("interval", seconds=plugin_config.interval)
 async def _() -> None:
     global room_infos
 
@@ -91,7 +91,7 @@ async def broadcast(uids: list[str]) -> None:
         info = room_infos[uid]
 
         if info["live_status"] and time() - info["live_time"] < max(
-            config.interval, 10
+            plugin_config.interval, 10
         ):
             url = await get_share_click(
                 info["room_id"], "vertical-three-point", "live.live-room-detail.0.0.pv"
@@ -100,23 +100,31 @@ async def broadcast(uids: list[str]) -> None:
                 tasks.append(
                     send_message(
                         sub.session.session,
-                        config.live_template.format(url=url, **info),
+                        plugin_config.live_template.format(url=url, **info),
                     )
                 )
         else:
             for sub in room_subs[uid]:
                 tasks.append(
                     send_message(
-                        sub.session.session, config.preparing_template.format(**info)
+                        sub.session.session,
+                        plugin_config.preparing_template.format(**info),
                     )
                 )
 
     await gather(*tasks)
 
 
-@on_alconna(Alconna("订阅B站直播", Arg("uid", r"re:UID:\d+")), permission=ADMIN).handle()
+@on_alconna(
+    Alconna("订阅B站直播", Arg("uid", r"re:(?:UID:)?\d+")), permission=ADMIN
+).handle()
 async def _(db: async_scoped_session, sess: EventSession, uid: str):
     uid = uid.removeprefix("UID:")
+
+    sub = Subscription(uid=int(uid), session_id=await get_session_persist_id(sess))
+    if sub in room_subs[uid]:
+        return await UniMessage(f"已订阅 UID:{uid} 的直播间").send()
+
     try:
         infos = raise_for_status(
             await client.post(GET_ROOM_STATUS_INFO_URL, json={"uids": [uid]})
@@ -131,12 +139,6 @@ async def _(db: async_scoped_session, sess: EventSession, uid: str):
     except KeyError:
         return await UniMessage(f"用户不存在或未开通直播间").send()
 
-    sub = Subscription(uid=int(uid), session_id=await get_session_persist_id(sess))
-    if sub in room_subs[uid]:
-        return await UniMessage(
-            f"已订阅 {info['uname']} (UID:{uid}) 的直播间 ({info['room_id']})"
-        ).send()
-
     db.add(sub)
     await db.commit()
     await db.refresh(sub, ["session"])
@@ -148,7 +150,9 @@ async def _(db: async_scoped_session, sess: EventSession, uid: str):
     ).send()
 
 
-@on_alconna(Alconna("取订B站直播", Arg("uid", r"re:UID:\d+")), permission=ADMIN).handle()
+@on_alconna(
+    Alconna("取订B站直播", Arg("uid", r"re:(?:UID:)?\d+")), permission=ADMIN
+).handle()
 async def _(db: async_scoped_session, sess: EventSession, uid: str):
     uid = uid.removeprefix("UID:")
     sub = Subscription(uid=int(uid), session_id=await get_session_persist_id(sess))

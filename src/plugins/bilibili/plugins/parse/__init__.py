@@ -1,4 +1,4 @@
-from nonebot import get_driver, on_regex
+from nonebot import get_driver, get_plugin_config, on_regex
 from nonebot.plugin import PluginMetadata
 from nonebot.rule import to_me
 from nonebot_plugin_alconna import UniMessage
@@ -15,7 +15,7 @@ __plugin_meta__ = PluginMetadata(
 )
 
 global_config = get_driver().config
-config = Config.parse_obj(global_config)
+plugin_config = get_plugin_config(Config)
 
 
 TEMPLATE = UniMessage.template("{:Image(url=picture)}{link}")
