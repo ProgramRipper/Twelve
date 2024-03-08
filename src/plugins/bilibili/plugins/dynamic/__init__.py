@@ -1,13 +1,11 @@
 from asyncio import gather
 from collections import defaultdict
 from contextlib import asynccontextmanager
-from itertools import compress, repeat
-from operator import itemgetter, not_
 from typing import Any, AsyncGenerator
 
 import backoff
-from aiocache import SimpleMemoryCache
 from arclet.alconna import Arg
+from cachetools import FIFOCache
 from httpx import AsyncClient
 from nonebot import get_driver, get_plugin_config, logger
 from nonebot.plugin import PluginMetadata
@@ -37,10 +35,9 @@ driver = get_driver()
 global_config = get_driver().config
 plugin_config = get_plugin_config(Config)
 
-
 context: BrowserContext
 dynamic_subs: dict[str, set[Subscription]] = defaultdict(set)
-cache = SimpleMemoryCache()
+cache = FIFOCache(100)
 client = AsyncClient(
     headers={
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -75,8 +72,9 @@ async def _() -> None:
         ]
     )
 
-    data = await get_dynamics()
-    await cache.multi_set(zip(map(itemgetter("id_str"), data["items"]), repeat(True)))
+    for page in range(4, -1, -1):
+        for item in (await get_dynamics(page))["items"]:
+            cache[item["id_str"]] = None
 
     async with get_session() as session:
         for sub in await session.scalars(select(Subscription)):
@@ -88,17 +86,17 @@ async def _() -> None:
     if not next(filter(dynamic_subs.__getitem__, dynamic_subs), None):
         return
 
-    data = await get_dynamics()
-
-    ids = [item["id_str"] for item in data["items"]]
-    selectors = list(map(not_, await cache.multi_get(ids)))
-    await cache.multi_set(zip(ids, repeat(True)), 10 * 60)
+    dynamics = []
+    for dynamic in (await get_dynamics())["items"]:
+        if dynamic["id_str"] not in cache:
+            cache[dynamic["id_str"]] = None
+            dynamics.append(dynamic)
 
     run_task(
         gather(
             *(
                 broadcast(dynamic)
-                for dynamic in compress(data["items"], selectors)
+                for dynamic in dynamics
                 if dynamic["type"] in plugin_config.types
             )
         )

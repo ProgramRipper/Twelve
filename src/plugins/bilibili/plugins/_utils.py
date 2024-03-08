@@ -1,9 +1,8 @@
 import re
 import string
 from random import choices
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from aiocache import cached
 from httpx import AsyncClient, Response
 
 
@@ -80,8 +79,3 @@ async def get_share_placard(
             },
         )
     )
-
-
-if not TYPE_CHECKING:
-    get_share_click = cached(60 * 60 * 24)(get_share_click)
-    get_share_placard = cached(60 * 60 * 24)(get_share_placard)
