@@ -1,21 +1,16 @@
-FROM python:slim as base
+FROM python:slim
 WORKDIR /app
-ENV PLAYWRIGHT_BROWSERS_PATH=downloads/ms-playwright
+ENV PATH=.venv/bin:${PATH} \
+    PLAYWRIGHT_BROWSERS_PATH=downloads/ms-playwright
 
-
-FROM base as build
-
-RUN pip install pdm
+RUN pip install pdm && pip cache purge
 COPY pyproject.toml pdm.lock ./
-RUN pdm sync --prod --no-editable && \
-    pdm run playwright install chromium
-
-
-FROM base
-
-RUN pip install nb-cli
-COPY --from=build /app .
-RUN .venv/bin/playwright install-deps chromium && \
+RUN pdm sync -G docker --prod --no-editable && \
+    pdm cache clear && \
+    \
+    pip freeze | xargs pip uninstall -y && \
+    \
+    playwright install chromium --with-deps && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
 COPY . .
