@@ -76,7 +76,8 @@ async def _() -> None:
             [
                 uid
                 for uid in uids
-                if curr_room_infos[uid]["live_status"] ^ room_infos[uid]["live_status"]
+                if uid in curr_room_infos
+                and curr_room_infos[uid]["live_status"] ^ room_infos[uid]["live_status"]
             ]
         )
     )
