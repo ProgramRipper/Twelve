@@ -1,6 +1,7 @@
 from asyncio import gather
-from collections import defaultdict
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager
+from queue import PriorityQueue
 from typing import Any, AsyncGenerator
 
 import backoff
@@ -37,7 +38,6 @@ plugin_config = get_plugin_config(Config)
 
 context: BrowserContext
 dynamic_subs: dict[str, set[Subscription]] = defaultdict(set)
-cache = FIFOCache(100)
 client = AsyncClient(
     headers={
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -46,6 +46,35 @@ client = AsyncClient(
     cookies=bilibili_config.cookies,
     base_url="https://api.bilibili.com/x",
 )
+
+
+class Cache:
+    data: set[str]
+    queue: PriorityQueue[str]
+
+    def __init__(self) -> None:
+        self.data = set()
+        self.queue = PriorityQueue()
+
+    def push(self, item: str) -> None:
+        if item in self.data:
+            return
+        self.queue.put_nowait(item)
+        self.data.add(item)
+
+    def pop(self) -> str:
+        item = self.queue.get_nowait()
+        self.data.remove(item)
+        return item
+
+    def replace(self, item: str) -> str | None:
+        if item < self.queue.queue[0] or item in self.data:
+            return
+        self.push(item)
+        return self.pop()
+
+
+cache = Cache()
 
 
 @driver.on_startup
@@ -74,7 +103,7 @@ async def _() -> None:
 
     for page in range(4, -1, -1):
         for item in (await get_dynamics(page))["items"]:
-            cache[item["id_str"]] = None
+            cache.push(item["id_str"])
 
     async with get_session() as session:
         for sub in await session.scalars(select(Subscription)):
@@ -88,8 +117,7 @@ async def _() -> None:
 
     dynamics = []
     for dynamic in (await get_dynamics())["items"]:
-        if dynamic["id_str"] not in cache:
-            cache[dynamic["id_str"]] = None
+        if cache.replace(dynamic["id_str"]):
             dynamics.append(dynamic)
 
     run_task(
