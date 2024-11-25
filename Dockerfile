@@ -1,7 +1,6 @@
 FROM python:slim
 WORKDIR /app
-ENV PATH=.venv/bin:${PATH} \
-    PLAYWRIGHT_BROWSERS_PATH=downloads/ms-playwright
+ENV PATH=.venv/bin:${PATH}
 
 RUN pip install pdm && pip cache purge
 COPY pyproject.toml pdm.lock ./

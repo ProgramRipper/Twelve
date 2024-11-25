@@ -13,6 +13,7 @@ class RoomInfo(TypedDict):
     live_time: int
     live_status: int
     uname: str
+    face: str
     cover_from_user: str
 
 

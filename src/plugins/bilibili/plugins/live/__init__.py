@@ -97,12 +97,20 @@ async def broadcast(uids: list[str]) -> None:
             url = await get_share_click(
                 info["room_id"], "vertical-three-point", "live.live-room-detail.0.0.pv"
             )
+            cover = (await client.get(info["cover_from_user"] or info["face"])).content
+
             for sub in room_subs[uid]:
                 tasks.append(
                     send_message(
                         sub.session.session,
-                        plugin_config.live_template.format(url=url, **info),
+                        plugin_config.live_template.format(
+                            url=url,
+                            **info,
+                        ),
                     )
+                )
+                tasks.append(
+                    send_message(sub.session.session, UniMessage.image(raw=cover))
                 )
         else:
             for sub in room_subs[uid]:
