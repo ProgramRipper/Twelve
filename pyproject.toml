@@ -3,25 +3,22 @@ name = ""
 version = "0.1.0"
 description = "Twelve"
 readme = "README.md"
-requires-python = "~=3.11"
+requires-python = "~=3.12"
 dependencies = [
     "backoff~=2.2",
-    "cachetools~=5.3",
-    "nonebot2[fastapi,httpx,websockets]~=2.2",
-    "nonebot-adapter-onebot~=2.3",
-    "nonebot-plugin-alconna~=0.36,<0.37",
-    "nonebot-plugin-apscheduler~=0.3",
-    "nonebot-plugin-guild-patch~=0.2",
-    "nonebot-plugin-htmlrender~=0.2",
+    "cachetools~=5.5",
+    "nb-cli~=1.4",
+    "nonebot2[fastapi,httpx,websockets]~=2.3",
+    "nonebot-adapter-onebot~=2.4",
+    "nonebot-plugin-alconna~=0.52",
+    "nonebot-plugin-apscheduler~=0.5",
+    "nonebot-plugin-htmlrender~=0.3",
     "nonebot-plugin-orm[default]~=0.7",
-    "nonebot-plugin-sentry~=1.0",
-    "nonebot-plugin-session~=0.2",
-    "nonebot-plugin-session-orm~=0.1",
-    "pydantic~=1.10",
+    "nonebot-plugin-sentry~=2.0",
+    "nonebot-plugin-session~=0.3",
+    "nonebot-plugin-session-orm~=0.2",
+    "pydantic==2.9.2",
 ]
-
-[project.optional-dependencies]
-docker = ["nb-cli~=1.4"]
 
 [tool.nonebot]
 adapters = [
@@ -30,7 +27,6 @@ adapters = [
 plugins = [
     "nonebot_plugin_alconna",
     "nonebot_plugin_apscheduler",
-    "nonebot_plugin_guild_patch",
     "nonebot_plugin_htmlrender",
     "nonebot_plugin_orm",
     "nonebot_plugin_sentry",
@@ -41,9 +37,13 @@ plugin_dirs = ["src/plugins"]
 builtin_plugins = []
 
 [tool.pdm.dev-dependencies]
-dev = ["black~=23.11", "isort~=5.12", "nonebot-plugin-orm[sqlite]~=0.7"]
+dev = [
+    "black~=24.8",
+    "isort~=5.13",
+    "nonebot-plugin-orm[sqlite]~=0.7",
+]
 
 [tool.pyright]
 enableExperimentalFeatures = true
-pythonVersion = "3.11"
+pythonVersion = "3.12"
 pythonPlatform = "Linux"

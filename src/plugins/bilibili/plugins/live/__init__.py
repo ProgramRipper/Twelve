@@ -7,7 +7,7 @@ from arclet.alconna import Arg
 from httpx import AsyncClient
 from nonebot import get_driver, get_plugin_config, logger
 from nonebot.plugin import PluginMetadata
-from nonebot_plugin_alconna import Alconna, UniMessage, on_alconna
+from nonebot_plugin_alconna import Alconna, Image, UniMessage, on_alconna
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_orm import async_scoped_session, get_session
 from nonebot_plugin_session import EventSession
@@ -97,11 +97,19 @@ async def broadcast(uids: list[str]) -> None:
             url = await get_share_click(
                 info["room_id"], "vertical-three-point", "live.live-room-detail.0.0.pv"
             )
+            cover = Image(
+                raw=(await client.get(info["cover_from_user"] or info["face"])).content
+            )
+
             for sub in room_subs[uid]:
                 tasks.append(
                     send_message(
                         sub.session.session,
-                        plugin_config.live_template.format(url=url, **info),
+                        plugin_config.live_template.format(
+                            url=url,
+                            cover=cover,
+                            **info,
+                        ),
                     )
                 )
         else:

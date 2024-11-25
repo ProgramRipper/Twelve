@@ -8,7 +8,7 @@ from src.utils import with_prefix
 class Config(BaseModel):
     interval: int = 1
     live_template: UniMessageTemplate = UniMessage.template(
-        "{:AtAll()} {uname} 正在直播 {title}{:Image(url=cover_from_user)}{url}"
+        "{:AtAll()} {uname} 正在直播 {title}{cover}{url}"
     )
     preparing_template: UniMessageTemplate = UniMessage.template("{uname} 下锅了")
 

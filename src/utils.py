@@ -70,13 +70,20 @@ async def send_message(sess: Session, msg: UniMessage) -> Receipt:
     target = session_to_target(sess)
 
     if isinstance(bot, OneBot11Bot) and not target.private and AtAll in msg:
-        remain = await bot.get_group_at_all_remain(group_id=target.parent_id)
-        if not all(
-            itemgetter(
-                "can_at_all",
-                "remain_at_all_count_for_group",
-                "remain_at_all_count_for_uin",
-            )(remain)
+        info = await bot.get_group_member_info(
+            group_id=int(target.parent_id), user_id=int(bot.self_id)
+        )
+        remain = await bot.get_group_at_all_remain(group_id=int(target.parent_id))
+
+        if not (
+            info["role"] in ("owner", "admin")
+            and all(
+                itemgetter(
+                    "can_at_all",
+                    "remain_at_all_count_for_group",
+                    "remain_at_all_count_for_uin",
+                )(remain)
+            )
         ):
             msg = msg.exclude(AtAll)
 
@@ -103,20 +110,17 @@ def _regex_str(
 
 
 @overload
-def RegexStr(__group: Literal[0] = 0) -> str:
-    ...
+def RegexStr(__group: Literal[0] = 0) -> str: ...
 
 
 @overload
-def RegexStr(__group: str | int) -> str | Any:
-    ...
+def RegexStr(__group: str | int) -> str | Any: ...
 
 
 @overload
 def RegexStr(
     __group1: str | int, __group2: str | int, *groups: str | int
-) -> tuple[str | Any, ...]:
-    ...
+) -> tuple[str | Any, ...]: ...
 
 
 def RegexStr(*groups: str | int) -> str | tuple[str | Any, ...] | Any:

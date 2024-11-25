@@ -1,12 +1,11 @@
 from asyncio import gather
-from collections import defaultdict, deque
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from queue import PriorityQueue
 from typing import Any, AsyncGenerator
 
 import backoff
 from arclet.alconna import Arg
-from cachetools import FIFOCache
 from httpx import AsyncClient
 from nonebot import get_driver, get_plugin_config, logger
 from nonebot.plugin import PluginMetadata
@@ -278,4 +277,6 @@ async def _(db: async_scoped_session, sess: EventSession):
     if not subs:
         return await UniMessage(f"没有订阅动态").send()
 
-    await UniMessage("已订阅动态:\n" + "\n".join(f"UID:{sub.uid}" for sub in subs)).send()
+    await UniMessage(
+        "已订阅动态:\n" + "\n".join(f"UID:{sub.uid}" for sub in subs)
+    ).send()
