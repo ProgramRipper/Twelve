@@ -146,25 +146,42 @@ async def get_dynamics(page: int = 1) -> Dynamics:
 
 
 async def broadcast(dynamic: Dynamic):
+    uids = {str(dynamic["modules"]["module_author"]["mid"])}
+
+    if dynamic["type"] in (
+        "DYNAMIC_TYPE_DRAW",
+        "DYNAMIC_TYPE_WORD",
+        "DYNAMIC_TYPE_FORWARD",
+    ):
+        if dynamic["type"] == "DYNAMIC_TYPE_FORWARD":
+            nodes = dynamic["modules"]["module_dynamic"]["desc"]["rich_text_nodes"]
+        else:
+            nodes = dynamic["modules"]["module_dynamic"]["major"]["opus"]["summary"][
+                "rich_text_nodes"
+            ]
+
+        for node in nodes:
+            if node["type"] == "RICH_TEXT_NODE_TYPE_AT":
+                uids.add(node["rid"])
+
+    sessions = {sub.session for uid in uids for sub in dynamic_subs.get(uid, ())}
+
+    if not sessions:
+        return
+
     screenshot, url = await gather(
         render_screenshot(dynamic),
         get_share_click(dynamic["id_str"], "dynamic", "dt.dt-detail.0.0.pv"),
     )
-    await gather(
-        *[
-            send_message(
-                sub.session.session,
-                plugin_config.template.format(
-                    name=dynamic["modules"]["module_author"]["name"],
-                    action=dynamic["modules"]["module_author"]["pub_action"]
-                    or plugin_config.types[dynamic["type"]],
-                    screenshot=Image(raw=screenshot),
-                    url=url,
-                ),
-            )
-            for sub in dynamic_subs[str(dynamic["modules"]["module_author"]["mid"])]
-        ]
+    message = plugin_config.template.format(
+        name=dynamic["modules"]["module_author"]["name"],
+        action=dynamic["modules"]["module_author"]["pub_action"]
+        or plugin_config.types[dynamic["type"]],
+        screenshot=Image(raw=screenshot),
+        url=url,
     )
+
+    await gather(*(send_message(sess.session, message) for sess in sessions))
 
 
 @backoff.on_exception(backoff.constant, TimeoutError, max_tries=3)
