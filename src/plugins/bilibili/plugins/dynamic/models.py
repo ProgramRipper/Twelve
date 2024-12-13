@@ -1,4 +1,4 @@
-from typing import Any, TypedDict
+from typing import TypedDict
 
 from nonebot_plugin_orm import Model
 from nonebot_plugin_session_orm import SessionModel
@@ -12,17 +12,9 @@ class ModuleAuthor(TypedDict):
     pub_action: str
 
 
-type ModuleDynamic = dict[str, Any]
-
-
-class Modules(TypedDict):
-    module_author: ModuleAuthor
-    module_dynamic: ModuleDynamic
-
-
 class Dynamic(TypedDict):
     id_str: str
-    modules: Modules
+    modules: dict[{"module_author": ModuleAuthor}]
     type: str
 
 
