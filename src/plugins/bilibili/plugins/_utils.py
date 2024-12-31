@@ -42,7 +42,11 @@ client = AsyncClient(
     base_url="https://api.bilibili.com/x/share",
 )
 
-URL_PATTERN = re.compile(r"https://b23\.tv/\w+")
+URL_PATTERN = re.compile(
+    r"http[s]?://"
+    r"(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|"
+    r"(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+)
 
 
 async def get_share_click(oid: Any, origin: str, share_id: str) -> str:
