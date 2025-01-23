@@ -174,20 +174,27 @@ async def render_screenshot(dynamic: Dynamic) -> bytes:
         await page.wait_for_load_state("networkidle")
 
         if "opus" in page.url:
-            remove = ".opus-nav,.opus-float-btn,.openapp-dialog,.opus-read-more"
+            remove = ".opus-read-more"
             target = ".opus-modules"
             await page.locator(".opus-module-content").evaluate(
                 "e => e.classList.remove('limit')"
             )
         elif "dynamic" in page.url:
-            remove = ".m-navbar,.dynamic-float-btn,.dyn-share"
+            remove = ".dyn-share"
             target = ".dyn-card"
+            await page.locator(".dyn-share").evaluate(
+                "e => e.parentNode.removeChild(e)"
+            )
         else:
-            remove = ""
+            remove = ":not(*)"
             target = "body"
 
-        await page.locator(remove).evaluate_all(
-            "es => es.forEach(e => e.parentNode.removeChild(e))"
+        await page.evaluate(
+            f"""
+            document
+              .querySelectorAll('body :not({target}, :has({target}), {target} *), {remove}')
+              .forEach(e => e.parentNode.removeChild(e))
+            """
         )
         screenshot = await page.locator(target).first.screenshot()
 
