@@ -5,9 +5,9 @@ from time import time
 
 from arclet.alconna import Arg
 from httpx import AsyncClient
-from nonebot import get_driver, get_plugin_config, logger
+from nonebot import get_driver, get_plugin_config
 from nonebot.plugin import PluginMetadata
-from nonebot_plugin_alconna import Alconna, Image, UniMessage, on_alconna
+from nonebot_plugin_alconna import Alconna, AtAll, Image, UniMessage, on_alconna
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_orm import async_scoped_session, get_session
 from nonebot_plugin_session import EventSession
@@ -15,7 +15,7 @@ from nonebot_plugin_session_orm import get_session_persist_id
 from sqlalchemy import select
 
 from .....utils import ADMIN, run_task, send_message
-from .._utils import get_share_click, raise_for_status
+from .._utils import get_share_click, handle_error, raise_for_status
 from .config import Config
 from .models import RoomInfo, Subscription
 
@@ -106,9 +106,7 @@ async def broadcast(uids: list[str]) -> None:
                     send_message(
                         sub.session.session,
                         plugin_config.live_template.format(
-                            url=url,
-                            cover=cover,
-                            **info,
+                            url=url, cover=cover, **info
                         ),
                     )
                 )
@@ -139,9 +137,7 @@ async def _(db: async_scoped_session, sess: EventSession, uid: str):
             await client.post(GET_ROOM_STATUS_INFO_URL, json={"uids": [uid]})
         )
     except Exception:
-        logger.error("获取直播间信息失败")
-        await UniMessage("获取直播间信息失败").send()
-        raise
+        await handle_error("获取直播间信息失败")
 
     try:
         info = infos[uid]
@@ -193,4 +189,26 @@ async def _(db: async_scoped_session, sess: EventSession):
         + "\n".join(
             "{uname} (UID:{uid})".format_map(room_infos[str(sub.uid)]) for sub in subs
         )
+    ).send()
+
+
+@on_alconna(
+    Alconna("展示B站直播", Arg("uid", r"re:(?:UID:)?\d+")), permission=ADMIN
+).handle()
+async def _(uid: str):
+    try:
+        info = raise_for_status(
+            await client.post(GET_ROOM_STATUS_INFO_URL, json={"uids": [uid]})
+        )[uid]
+    except Exception:
+        await handle_error("获取直播间信息失败")
+
+    url = await get_share_click(
+        info["room_id"], "vertical-three-point", "live.live-room-detail.0.0.pv"
+    )
+    cover = Image(
+        raw=(await client.get(info["cover_from_user"] or info["face"])).content
+    )
+    await plugin_config.live_template.format(url=url, cover=cover, **info).exclude(
+        AtAll
     ).send()

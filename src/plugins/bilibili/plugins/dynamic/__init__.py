@@ -7,7 +7,7 @@ from typing import Any, AsyncGenerator
 import backoff
 from arclet.alconna import Arg
 from httpx import AsyncClient
-from nonebot import get_driver, get_plugin_config, logger
+from nonebot import get_driver, get_plugin_config
 from nonebot.plugin import PluginMetadata
 from nonebot_plugin_alconna import Alconna, Image, UniMessage, on_alconna
 from nonebot_plugin_apscheduler import scheduler
@@ -20,7 +20,7 @@ from sqlalchemy import select
 
 from .....utils import ADMIN, run_task, send_message
 from ... import plugin_config as bilibili_config
-from .._utils import get_share_click, raise_for_status
+from .._utils import get_share_click, handle_error, raise_for_status
 from .config import Config
 from .models import Dynamic, Dynamics, Subscription
 
@@ -168,9 +168,9 @@ async def broadcast(dynamic: Dynamic):
 
 
 @backoff.on_exception(backoff.constant, TimeoutError, max_tries=3)
-async def render_screenshot(dynamic: Dynamic) -> bytes:
+async def render_screenshot(id_str: str) -> bytes:
     async with get_new_page() as page:
-        await page.goto(f"https://t.bilibili.com/{dynamic['id_str']}")
+        await page.goto(f"https://t.bilibili.com/{id_str}")
         await page.wait_for_load_state("networkidle")
 
         if "opus" in page.url:
@@ -222,9 +222,7 @@ async def _(db: async_scoped_session, sess: EventSession, uid: str):
             ] not in {1, 2, 6}:
                 await modify_relation(uid, 1)
         except Exception:
-            logger.error("订阅B站动态失败")
-            await UniMessage("订阅B站动态失败").send()
-            raise
+            await handle_error("订阅B站动态失败")
 
     sub = Subscription(uid=int(uid), session_id=await get_session_persist_id(sess))
     if sub in dynamic_subs[uid]:
@@ -258,7 +256,7 @@ async def _(db: async_scoped_session, sess: EventSession, uid: str):
             ] in {1, 2, 6}:
                 await modify_relation(uid, 2)
         except Exception:
-            logger.error("取消关注失败")
+            await handle_error("取消关注失败")
 
     await UniMessage(f"成功取订 UID:{uid} 的动态").send()
 
@@ -286,4 +284,26 @@ async def _(db: async_scoped_session, sess: EventSession):
 
     await UniMessage(
         "已订阅动态:\n" + "\n".join(f"UID:{sub.uid}" for sub in subs)
+    ).send()
+
+
+@on_alconna(Alconna("展示B站动态", Arg("id_str", r"re:\d+")), permission=ADMIN).handle()
+async def _(id_str: str):
+    try:
+        dynamic = raise_for_status(
+            await client.get("/polymer/web-dynamic/v1/detail", params={"id": id_str})
+        )["item"]
+    except Exception:
+        await handle_error("获取动态信息失败")
+
+    screenshot, url = await gather(
+        render_screenshot(id_str),
+        get_share_click(id_str, "dynamic", "dt.dt-detail.0.0.pv"),
+    )
+    await plugin_config.template.format(
+        name=dynamic["modules"]["module_author"]["name"],
+        action=dynamic["modules"]["module_author"]["pub_action"]
+        or plugin_config.types[dynamic["type"]],
+        screenshot=Image(raw=screenshot),
+        url=url,
     ).send()

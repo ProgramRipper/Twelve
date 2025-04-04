@@ -1,9 +1,11 @@
 import re
 import string
 from random import choices
-from typing import Any
+from typing import Any, NoReturn
 
 from httpx import AsyncClient, Response
+from nonebot import logger
+from nonebot_plugin_alconna import UniMessage
 
 
 def bv2av(bvid: str) -> int:
@@ -83,3 +85,9 @@ async def get_share_placard(
             },
         )
     )
+
+
+async def handle_error(message: str) -> NoReturn:
+    logger.error(message)
+    await UniMessage(message).send()
+    raise
