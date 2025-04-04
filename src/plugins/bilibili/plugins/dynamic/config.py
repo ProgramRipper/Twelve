@@ -16,6 +16,7 @@ class Config(BaseModel):
         "is_mobile": True,
         "has_touch": True,
         "default_browser_type": "chromium",
+        "bypass_csp": True,
     }
     template: UniMessageTemplate = UniMessage.template(
         "{name} {action}{screenshot}{url}"

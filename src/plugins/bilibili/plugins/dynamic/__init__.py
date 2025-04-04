@@ -35,7 +35,6 @@ driver = get_driver()
 global_config = get_driver().config
 plugin_config = get_plugin_config(Config)
 
-context: BrowserContext
 dynamic_subs: dict[str, set[Subscription]] = defaultdict(set)
 client = AsyncClient(
     headers={
@@ -76,10 +75,7 @@ class Cache:
 cache = Cache()
 
 
-@driver.on_startup
-async def _() -> None:
-    global context
-
+async def get_context() -> BrowserContext:
     context = await (await get_browser()).new_context(**plugin_config.screenshot_device)
     await context.add_cookies(
         [
@@ -99,7 +95,17 @@ async def _() -> None:
             }
         ]
     )
+    return context
 
+
+@asynccontextmanager
+async def get_new_page(**kwargs) -> AsyncGenerator[Page, Any]:
+    async with await get_context() as context, await context.new_page(**kwargs) as page:
+        yield page
+
+
+@driver.on_startup
+async def _() -> None:
     for page in range(4, -1, -1):
         for item in (await get_dynamics(page))["items"]:
             cache.push(item["id_str"])
@@ -147,7 +153,7 @@ async def get_dynamics(page: int = 1) -> Dynamics:
 
 async def broadcast(dynamic: Dynamic):
     screenshot, url = await gather(
-        render_screenshot(dynamic),
+        render_screenshot(dynamic["id_str"]),
         get_share_click(dynamic["id_str"], "dynamic", "dt.dt-detail.0.0.pv"),
     )
     await gather(
@@ -171,6 +177,22 @@ async def broadcast(dynamic: Dynamic):
 async def render_screenshot(id_str: str) -> bytes:
     async with get_new_page() as page:
         await page.goto(f"https://t.bilibili.com/{id_str}")
+
+        await page.add_style_tag(
+            content="""
+                @font-face {
+                  font-family: "Xiaolai Mono SC";
+                  src: url("https://hanabi-live.com/_static/assets/42c1a056859b9099fb8df7b1e731c8b0.ttf") format("truetype");
+                }
+                @font-face {
+                  font-family: "Segoe UI Emoji";
+                  src: url("https://hanabi-live.com/_static/assets/aa786a4b6a6ae2a1f7b9e87d281be8cf.ttf") format("truetype");
+                }
+                * {
+                  font-family: "Xiaolai Mono SC", "Segoe UI Emoji" !important;
+                }
+            """
+        )
         await page.wait_for_load_state("networkidle")
 
         if "opus" in page.url:
@@ -199,15 +221,6 @@ async def render_screenshot(id_str: str) -> bytes:
         screenshot = await page.locator(target).first.screenshot()
 
     return screenshot
-
-
-@asynccontextmanager
-async def get_new_page(**kwargs) -> AsyncGenerator[Page, Any]:
-    page = await context.new_page(**kwargs)
-    try:
-        yield page
-    finally:
-        await page.close()
 
 
 @on_alconna(

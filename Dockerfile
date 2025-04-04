@@ -1,17 +1,19 @@
-FROM python:slim
+FROM python:slim as base
 WORKDIR /app
 ENV PATH=.venv/bin:${PATH}
 
-RUN pip install pdm && pip cache purge
+
+FROM base AS build
+ENV PDM_CHECK_UPDATE=false
+
+RUN pip install pdm
 COPY pyproject.toml pdm.lock ./
-RUN pdm sync -G docker --prod --no-editable && \
-    pdm cache clear && \
-    \
-    pip freeze | xargs pip uninstall -y && \
-    \
-    playwright install chromium --with-deps && \
-    apt clean && \
-    rm -rf /var/lib/apt/lists/*
+RUN pdm sync --prod --no-editable
+
+
+FROM base
+
+COPY --from=build /app/.venv/ .venv
 COPY . .
 
 CMD nb orm upgrade && nb run
