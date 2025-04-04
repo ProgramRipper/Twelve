@@ -28,7 +28,7 @@ async def parse_aid(aid: str = RegexStr(1)):
     ).send()
 
 
-@on_regex(r"BV1[1-9a-km-np-zA-HJ-NP-Z]{9}", rule=to_me()).handle()
+@on_regex(r"BV1[1-9a-km-zA-HJ-NP-Z]{9}", rule=to_me()).handle()
 async def _(bvid: str = RegexStr()):
     await parse_aid(bv2av(bvid))
 
