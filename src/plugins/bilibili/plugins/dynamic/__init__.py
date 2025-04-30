@@ -176,8 +176,9 @@ async def broadcast(dynamic: Dynamic):
 @backoff.on_exception(backoff.constant, TimeoutError, max_tries=3)
 async def render_screenshot(id_str: str) -> bytes:
     async with get_new_page() as page:
-        await page.goto(f"https://t.bilibili.com/{id_str}")
+        await page.goto(f"https://m.bilibili.com/opus/{id_str}")
 
+        await page.wait_for_load_state("domcontentloaded")
         await page.add_style_tag(
             content="""
                 @font-face {
@@ -304,7 +305,10 @@ async def _(db: async_scoped_session, sess: EventSession):
 async def _(id_str: str):
     try:
         dynamic = raise_for_status(
-            await client.get("/polymer/web-dynamic/v1/detail", params={"id": id_str})
+            await client.get(
+                "/polymer/web-dynamic/v1/detail",
+                params={"id": id_str, "features": "itemOpusStyle"},
+            )
         )["item"]
     except Exception:
         await handle_error("获取动态信息失败")
