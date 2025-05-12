@@ -182,15 +182,19 @@ async def render_screenshot(id_str: str) -> bytes:
         await page.add_style_tag(
             content="""
                 @font-face {
-                  font-family: "Xiaolai Mono SC";
-                  src: url("https://hanabi-live.com/_static/assets/42c1a056859b9099fb8df7b1e731c8b0.ttf") format("truetype");
+                  font-family: "LXGW ZhenKai";
+                  src: url("https://hanabi-live.com/_static/assets/f167150329dc0576d84f4d14b65adbd1.ttf") format("truetype");
+                }
+                @font-face {
+                  font-family: "LXGW WenKai";
+                  src: url("https://hanabi-live.com/_static/assets/174d37b738e6c3935c301fb01d1ec695.ttf") format("truetype");
                 }
                 @font-face {
                   font-family: "Segoe UI Emoji";
                   src: url("https://hanabi-live.com/_static/assets/aa786a4b6a6ae2a1f7b9e87d281be8cf.ttf") format("truetype");
                 }
                 * {
-                  font-family: "Xiaolai Mono SC", "Segoe UI Emoji" !important;
+                  font-family: "LXGW ZhenKai", "LXGW WenKai", "Segoe UI Emoji" !important;
                 }
             """
         )

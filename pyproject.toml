@@ -10,11 +10,10 @@ dependencies = [
     "nb-cli~=1.4",
     "nonebot2[fastapi,httpx,websockets]~=2.3",
     "nonebot-adapter-onebot~=2.4",
-    "nonebot-plugin-alconna~=0.56",
+    "nonebot-plugin-alconna~=0.57",
     "nonebot-plugin-apscheduler~=0.5",
-    "nonebot-plugin-htmlrender @ https://github.com/ProgramRipper/nonebot-plugin-htmlrender/archive/0f7e2951f91c6ee9329ad16975cbfdbb47504773.zip",
+    "nonebot-plugin-htmlrender~=0.6",
     "nonebot-plugin-orm[default]~=0.7",
-    "nonebot-plugin-sentry~=2.0",
     "nonebot-plugin-session~=0.3",
     "nonebot-plugin-session-orm~=0.2",
 ]
@@ -28,7 +27,6 @@ plugins = [
     "nonebot_plugin_apscheduler",
     "nonebot_plugin_htmlrender",
     "nonebot_plugin_orm",
-    "nonebot_plugin_sentry",
     "nonebot_plugin_session",
     "nonebot_plugin_session_orm",
 ]
