@@ -11,7 +11,7 @@ from nonebot import get_driver, get_plugin_config
 from nonebot.plugin import PluginMetadata
 from nonebot_plugin_alconna import Alconna, Image, UniMessage, on_alconna
 from nonebot_plugin_apscheduler import scheduler
-from nonebot_plugin_htmlrender import get_browser, get_new_page
+from nonebot_plugin_htmlrender import get_browser
 from nonebot_plugin_orm import async_scoped_session, get_session
 from nonebot_plugin_session import EventSession
 from nonebot_plugin_session_orm import get_session_persist_id
@@ -75,15 +75,24 @@ class Cache:
 cache = Cache()
 
 
+_context: BrowserContext | None = None
+
 async def get_context() -> BrowserContext:
-    context = await (await get_browser()).new_context(**plugin_config.screenshot_device)
-    await context.add_cookies(
+    global _context
+
+    if _context and _context.browser and _context.browser.is_connected():
+        return _context
+
+    _context = await (await get_browser()).new_context(
+        **plugin_config.screenshot_device
+    )
+    await _context.add_cookies(
         [
             {"name": name, "value": value, "domain": ".bilibili.com", "path": "/"}
             for name, value in bilibili_config.cookies.items()
         ]
     )
-    await context.add_cookies(
+    await _context.add_cookies(
         [
             {
                 "name": "SESSDATA",
@@ -95,12 +104,24 @@ async def get_context() -> BrowserContext:
             }
         ]
     )
-    return context
+
+    pattern = "@540w_540h_1c.webp"
+    await _context.route(
+        "**/*" + pattern,
+        lambda route: route.continue_(
+            url=route.request.url[: -len(pattern)] + "@540w_540h_1c_!header.webp"
+        ),
+    )
+
+    return _context
 
 
 @asynccontextmanager
 async def get_new_page(**kwargs) -> AsyncGenerator[Page, Any]:
-    async with await get_context() as context, await context.new_page(**kwargs) as page:
+    async with await (await get_context()).new_page(**kwargs) as page:
+        await (await page.context.new_cdp_session(page)).send(
+            "Network.setCacheDisabled", {"cacheDisabled": False}
+        )
         yield page
 
 
@@ -181,7 +202,6 @@ async def render_screenshot(id_str: str) -> bytes:
         await page.wait_for_load_state("domcontentloaded")
         await page.add_style_tag(
             content="""
-                @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols+2&family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap');
                 @font-face {
                   font-family: "LXGW ZhenKai";
                   src: url("https://hanabi-live.com/_static/assets/f167150329dc0576d84f4d14b65adbd1.ttf") format("truetype");
@@ -190,12 +210,8 @@ async def render_screenshot(id_str: str) -> bytes:
                   font-family: "LXGW WenKai";
                   src: url("https://hanabi-live.com/_static/assets/174d37b738e6c3935c301fb01d1ec695.ttf") format("truetype");
                 }
-                @font-face {
-                  font-family: "Segoe UI Emoji";
-                  src: url("https://hanabi-live.com/_static/assets/aa786a4b6a6ae2a1f7b9e87d281be8cf.ttf") format("truetype");
-                }
                 * {
-                  font-family: "LXGW ZhenKai", "LXGW WenKai", "Noto Sans", "Noto Sans Symbols 2", "Segoe UI Emoji" !important;
+                  font-family: "LXGW ZhenKai", "LXGW WenKai", sans-serif !important;
                 }
             """
         )
