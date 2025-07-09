@@ -1,7 +1,7 @@
 from typing import TypedDict
 
 from nonebot_plugin_orm import Model
-from nonebot_plugin_session_orm import SessionModel
+from nonebot_plugin_uninfo.orm import SceneModel
 from sqlalchemy import BigInteger, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,17 +19,15 @@ class RoomInfo(TypedDict):
 
 class Subscription(Model):
     uid: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    session_id: Mapped[int] = mapped_column(
-        ForeignKey(SessionModel.id), primary_key=True
-    )
-    session: Mapped[SessionModel] = relationship(lazy=False, cascade="expunge")
+    scene_id: Mapped[int] = mapped_column(ForeignKey(SceneModel.id), primary_key=True)
+    scene: Mapped[SceneModel] = relationship(lazy=False, cascade="expunge")
 
     def __eq__(self, __value: object) -> bool:
         return (
             isinstance(__value, Subscription)
             and self.uid == __value.uid
-            and self.session_id == __value.session_id
+            and self.scene_id == __value.scene_id
         )
 
     def __hash__(self) -> int:
-        return hash((self.uid, self.session_id))
+        return hash((self.uid, self.scene_id))
