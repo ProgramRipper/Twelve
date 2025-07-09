@@ -1,10 +1,10 @@
 from nonebot import get_driver, get_plugin_config, on_regex
+from nonebot.params import RegexStr
 from nonebot.plugin import PluginMetadata
 from nonebot.rule import to_me
 from nonebot_plugin_alconna import UniMessage
 
-from .....utils import RegexStr
-from .._utils import bv2av, get_share_placard
+from ...utils import bv2av, get_share_placard
 from .config import Config
 
 __plugin_meta__ = PluginMetadata(

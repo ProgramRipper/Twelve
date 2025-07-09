@@ -1,11 +1,23 @@
 import re
 import string
 from random import choices
-from typing import Any, NoReturn
+from typing import Any, NoReturn, TypedDict
 
+from arclet.alconna import Arg
 from httpx import AsyncClient, Response
+from nepattern import BasePattern, MatchMode
 from nonebot import logger
 from nonebot_plugin_alconna import UniMessage
+
+UID_ARG = Arg(
+    "uid",
+    BasePattern(
+        r"(?:UID:)?(\d+)",
+        MatchMode.REGEX_CONVERT,
+        int,
+        lambda _, match: int(match[1]),
+    ),
+)
 
 
 def bv2av(bvid: str) -> int:
@@ -68,12 +80,15 @@ async def get_share_click(oid: Any, origin: str, share_id: str) -> str:
         )
     )
 
-    return next(URL_PATTERN.finditer(data["content"])).group()
+    return next(URL_PATTERN.finditer(data["content"]))[0]
 
 
-async def get_share_placard(
-    oid: Any, share_id: str
-) -> dict[{"picture": str, "link": str}]:
+class SharePlacard(TypedDict):
+    picture: str
+    link: str
+
+
+async def get_share_placard(oid: Any, share_id: str) -> SharePlacard:
     return raise_for_status(
         await client.post(
             "/placard",

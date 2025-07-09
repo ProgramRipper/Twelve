@@ -1,7 +1,7 @@
 """initial revision
 
 迁移 ID: 770b97dd5299
-父迁移: 
+父迁移:
 创建时间: 2023-11-18 04:43:41.481381
 
 """
@@ -15,8 +15,8 @@ from alembic import op
 
 revision: str = "770b97dd5299"
 down_revision: str | Sequence[str] | None = None
-branch_labels: str | Sequence[str] | None = ("live",)
-depends_on: str | Sequence[str] | None = None
+branch_labels: str | Sequence[str] | None = "live"
+depends_on: str | Sequence[str] | None = "2e0c173949d3"
 
 
 def upgrade(name: str = "") -> None:

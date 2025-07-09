@@ -28,6 +28,7 @@ class Config(BaseModel):
         # "DYNAMIC_TYPE_LIVE_RCMD": "直播了",
         "DYNAMIC_TYPE_WORD": "发布了文字动态",
         "DYNAMIC_TYPE_FORWARD": "转发了动态",
+        "DYNAMIC_TYPE_COMMON_SQUARE": "发布了动态",
     }
 
     @validator("template", pre=True)
