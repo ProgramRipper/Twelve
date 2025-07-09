@@ -6,39 +6,35 @@ readme = "README.md"
 requires-python = "~=3.12"
 dependencies = [
     "backoff~=2.2",
-    "cachetools~=5.5",
     "nb-cli~=1.4",
-    "nonebot2[fastapi,httpx,websockets]~=2.3",
-    "nonebot-adapter-onebot~=2.4",
-    "nonebot-plugin-alconna~=0.57",
+    "nonebot2[fastapi,httpx,websockets]~=2.4",
+    "nonebot-adapter-milky~=0.5.0rc3",
+    "nonebot-plugin-alconna~=0.59",
     "nonebot-plugin-apscheduler~=0.5",
     "nonebot-plugin-htmlrender~=0.6",
-    "nonebot-plugin-orm[default]~=0.7",
-    "nonebot-plugin-session~=0.3",
-    "nonebot-plugin-session-orm~=0.2",
+    "nonebot-plugin-orm[sqlite]~=0.8",
+    "nonebot-plugin-uninfo @ https://github.com/RF-Tar-Railt/nonebot-plugin-uninfo/archive/5b87d916af09d6a878039d3445193efda2ed1af3.zip",
+]
+
+[dependency-groups]
+dev = [
+    "black~=24.10",
+    "isort~=5.13",
 ]
 
 [tool.nonebot]
 adapters = [
-    { name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11" },
+    { name = "nonebot-adapter-milky", module_name = "nonebot.adapters.milky" },
 ]
 plugins = [
     "nonebot_plugin_alconna",
     "nonebot_plugin_apscheduler",
     "nonebot_plugin_htmlrender",
     "nonebot_plugin_orm",
-    "nonebot_plugin_session",
-    "nonebot_plugin_session_orm",
+    "nonebot_plugin_uninfo",
 ]
 plugin_dirs = ["src/plugins"]
 builtin_plugins = []
-
-[tool.pdm.dev-dependencies]
-dev = [
-    "black~=24.10",
-    "isort~=5.13",
-    "nonebot-plugin-orm[sqlite]~=0.7",
-]
 
 [tool.pyright]
 enableExperimentalFeatures = true
