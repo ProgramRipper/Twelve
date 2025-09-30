@@ -1,6 +1,5 @@
 FROM python:slim AS base
 WORKDIR /app
-ENV PATH=.venv/bin:${PATH}
 
 
 FROM base AS build
@@ -18,4 +17,4 @@ FROM base
 COPY --link --from=build /app/.venv/ .venv
 COPY --link . .
 
-CMD nb orm upgrade && nb run
+CMD [".venv/bin/python", "bot.py"]

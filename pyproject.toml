@@ -6,7 +6,6 @@ readme = "README.md"
 requires-python = "~=3.12"
 dependencies = [
     "backoff~=2.2",
-    "nb-cli~=1.4",
     "nonebot2[fastapi,httpx,websockets]~=2.4",
     "nonebot-adapter-milky~=0.5.0rc3",
     "nonebot-plugin-alconna~=0.59",
@@ -20,6 +19,7 @@ dependencies = [
 dev = [
     "black~=24.10",
     "isort~=5.13",
+    "nb-cli~=1.4",
 ]
 
 [tool.nonebot]
