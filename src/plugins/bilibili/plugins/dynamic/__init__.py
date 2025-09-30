@@ -15,7 +15,7 @@ from nonebot_plugin_htmlrender.browser import get_browser
 from nonebot_plugin_orm import async_scoped_session, get_session
 from nonebot_plugin_uninfo import MEMBER
 from nonebot_plugin_uninfo.orm import SceneModel, SceneOrm
-from playwright.async_api import BrowserContext, Error, Page
+from playwright.async_api import BrowserContext, Page
 from sqlalchemy import exists, select
 
 from .....utils import run_task, send_message
@@ -155,7 +155,7 @@ async def get_new_page(**kwargs) -> AsyncGenerator[Page, Any]:
         yield page
 
 
-@backoff.on_exception(backoff.constant, Error, max_tries=3)
+@backoff.on_exception(backoff.constant, Exception, max_tries=3)
 async def render_screenshot(id_str: str) -> bytes:
     async with get_new_page() as page:
         await page.goto(
