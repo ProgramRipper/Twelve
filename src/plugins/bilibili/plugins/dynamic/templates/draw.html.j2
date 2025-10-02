@@ -1,0 +1,251 @@
+{%- set opus = modules['module_dynamic']["major"]["opus"] -%}
+{%- set pics = opus["pics"] -%}
+{%- set columns = 1 if pics | length == 1 else 2 if pics | length in [2, 4] else 3 -%}
+{%- set author = modules["module_author"] -%}
+
+<head>
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/modern-normalize/3.0.1/modern-normalize.min.css" />
+    <style type="text/css">
+        body {
+            font-family: "LXGW ZhenKai GB", "LXGW WenKai GB", sans-serif;
+        }
+
+        p {
+            margin: 0;
+            font-weight: 400;
+        }
+
+        .top {
+            margin-bottom: 1.6vmin;
+        }
+
+        .album {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .album>img {
+            max-width: 100%;
+            max-height: 133.333vmin;
+        }
+
+        .indicator {
+            display: flex;
+            justify-content: center;
+            padding-top: 1.6vmin;
+        }
+
+        .dot {
+            width: 3.2vmin;
+            height: 3.2vmin;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dot:after {
+            display: block;
+            content: "";
+            width: 1.06667vmin;
+            height: 1.06667vmin;
+            border-radius: 50%;
+            background-color: #e3e5e7;
+        }
+
+        .dot.active:after {
+            background-color: #f69;
+        }
+
+        .title {
+            padding: 1.06667vmin 3.2vmin;
+            font-weight: 700;
+            font-size: 5.86667vmin;
+            line-height: 8.26667vmin;
+            color: #18191c;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            overflow: hidden;
+            -webkit-box-orient: vertical;
+        }
+
+        .author {
+            padding: 3.2vmin;
+            display: flex;
+            align-items: center;
+            height: 19.2vmin;
+        }
+
+        .avatar {
+            width: 10.66667vmin;
+            height: 10.66667vmin;
+            margin-right: 3.2vmin;
+            flex-shrink: 0;
+            border-radius: 50%;
+        }
+
+        .info {
+            flex: 1;
+        }
+
+        .name {
+            color: {{ author["vip"]["nickname_color"] }};
+            font-size: 4vmin;
+        }
+
+        .time {
+            margin-top: 1px;
+            font-size: 3.2vmin;
+            line-height: 4.53333vmin;
+            color: #9499a0;
+        }
+
+        .content {
+            padding: 0 3.2vmin;
+            margin-bottom: 3.2vmin;
+        }
+
+        .summary {
+            color: #18191c;
+            word-break: break-all;
+            letter-spacing: 0;
+            word-wrap: break-word;
+            font-size: 4.53333vmin;
+            line-height: 7.73333vmin;
+            white-space: pre-wrap;
+        }
+
+        .hl {
+            color: #008ac5;
+        }
+
+        .hl:before {
+            display: inline-block;
+            width: 5.86667vmin;
+            height: 5.86667vmin;
+            background: no-repeat 50% / contain;
+            vertical-align: sub;
+        }
+
+        .at:before {
+            display: none;
+        }
+
+        .emoji {
+            padding: 0 1px;
+        }
+
+        .emoji>img {
+            width: 6.13333vmin;
+            height: 6.13333vmin;
+            vertical-align: text-bottom;
+        }
+
+        .emoji.large>img {
+            width: 12.26667vmin;
+            height: 12.26667vmin;
+            vertical-align: sub;
+        }
+
+        .web:before {
+            content: "";
+            background-image: url(https://i0.hdslb.com/bfs/static/jinkela/long/mstation/opus/link.png);
+        }
+
+        .lottery:before {
+            content: "";
+            background-image: url(https://i0.hdslb.com/bfs/static/jinkela/long/mstation/opus/lottery.png);
+        }
+
+        .pics {
+            margin-top: 6.4vmin;
+        }
+
+        {%- if columns != 1 -%}
+        .pics>.wrapper {
+            display: inline-block;
+            position: relative;
+            margin-left: 1%;
+            margin-bottom: 1%;
+            width: {{ 101 / columns - 1 }}%;
+            padding-bottom: {{ 101 / columns - 1 }}%;
+            overflow: hidden;
+            vertical-align: top;
+        }
+
+        .pics>.wrapper:nth-child({{ columns }}n + 1) {
+            margin-left: 0;
+        }
+
+        .pics>.wrapper>img {
+            position: absolute;
+            top: 0;
+        }
+        {%- endif -%}
+
+        .pics>.wrapper>img {
+            width: 100%;
+            border-radius: 1.06667vmin;
+        }
+    </style>
+</head>
+
+<body>
+    {%- if pics and opus["style"] == 1 -%}
+    <div class="top">
+        <div class="album">
+            <img src="{{ opus['pics'][0]['url'] }}" />
+            {%- if pics | length > 1 -%}
+            <div class="indicator">
+                <div class="dot active"></div>
+                {%- for i in range(1, pics | length) -%}
+                <div class="dot"></div>
+                {%- endfor -%}
+            </div>
+            {%- endif -%}
+        </div>
+    </div>
+    {%- endif -%}
+    {%- if opus["title"] -%}
+    <div class="title">{{ opus["title"] }}</div>
+    {%- endif -%}
+    <div class="author">
+        <img class="avatar" src="{{ author['face'] }}" />
+        <div class="info">
+            <div class="name">
+                {{ author["name"] }}
+            </div>
+            <div class="time">
+                {{ author["pub_time"] }}
+            </div>
+        </div>
+    </div>
+    <div class="content">
+        <p class="summary">
+            {%- for node in opus["summary"]["rich_text_nodes"] -%}
+            {%- if node["type"] == "RICH_TEXT_NODE_TYPE_TEXT" -%}
+            <span>{{ node["text"] }}</span>
+            {%- elif node["type"] == "RICH_TEXT_NODE_TYPE_AT" -%}
+            <span class="hl at">{{ node["text"] }}</span>
+            {%- elif node["type"] == "RICH_TEXT_NODE_TYPE_EMOJI" -%}
+            <span class="emoji{{ ' large' if node['emoji']['size'] == 2 }}"><img src="{{ node['emoji']['icon_url'] }}" /></span>
+            {%- elif node["type"] == "RICH_TEXT_NODE_TYPE_WEB" -%}
+            <span class="hl web">{{ node["text"] }}</span>
+            {%- elif node["type"] == "RICH_TEXT_NODE_TYPE_LOTTERY" -%}
+            <span class="hl lottery">{{ node["text"] }}</span>
+            {%- endif -%}
+            {%- endfor -%}
+        </p>
+        {%- if pics and opus["style"] != 1 -%}
+        <p class="pics">
+            {%- for pic in pics -%}
+            <span class="wrapper">
+                <img src="{{ pic['url'] }}" />
+            </span>
+            {%- endfor -%}
+        </p>
+        {%- endif -%}
+    </div>
+</body>
