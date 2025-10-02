@@ -1,4 +1,4 @@
-FROM python:alpine AS base
+FROM python:3.13-slim AS base
 WORKDIR /app
 
 
@@ -14,6 +14,7 @@ RUN --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
 
 FROM base
 
+RUN apt update && apt install --no-install-recommends -y libx11-6
 COPY --link --from=build /app/.venv/ .venv
 COPY --link . .
 
