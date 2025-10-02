@@ -3,6 +3,7 @@ from collections.abc import Callable
 from inspect import iscoroutine
 from typing import TYPE_CHECKING, Awaitable, TypeVar, cast
 
+from httpx import AsyncClient
 from nonebot_plugin_alconna import AtAll, SupportAdapter, UniMessage
 from nonebot_plugin_alconna.uniseg import Receipt
 from nonebot_plugin_uninfo.orm import SceneModel, get_bot_model
@@ -55,3 +56,21 @@ async def send_message(scene_model: SceneModel, msg: UniMessage) -> Receipt:
 
 def with_prefix(prefix: str) -> Callable[[str], str]:
     return lambda name: f"{prefix}_{name}"
+
+
+client = AsyncClient(
+    headers={
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0"
+    }
+)
+
+
+async def img_fetch_fn(url: str) -> bytes:
+    if url.endswith(".webp"):
+        url += "@.jpeg"
+    return (await client.get(url)).content
+
+
+async def css_fetch_fn(url: str) -> str:
+    return (await client.get(url)).text
