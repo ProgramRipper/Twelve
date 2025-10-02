@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from nonebot_plugin_orm import Model
 from nonebot_plugin_uninfo.orm import SceneModel
@@ -14,6 +14,7 @@ class ModuleAuthor(TypedDict):
 
 class Modules(TypedDict):
     module_author: ModuleAuthor
+    module_dynamic: dict[str, Any]
 
 
 class Dynamic(TypedDict):

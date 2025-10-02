@@ -1,5 +1,6 @@
 from asyncio import gather
 from contextlib import asynccontextmanager
+from importlib.resources import as_file, files
 from queue import PriorityQueue
 from typing import Annotated, Any, AsyncGenerator
 
@@ -11,6 +12,7 @@ from nonebot.permission import SUPERUSER
 from nonebot.plugin import PluginMetadata
 from nonebot_plugin_alconna import Alconna, Image, Subcommand, UniMessage, on_alconna
 from nonebot_plugin_apscheduler import scheduler
+from nonebot_plugin_htmlkit import template_to_pic
 from nonebot_plugin_htmlrender.browser import get_browser
 from nonebot_plugin_orm import async_scoped_session, get_session
 from nonebot_plugin_uninfo import MEMBER
@@ -21,6 +23,7 @@ from sqlalchemy import exists, select
 from .....utils import run_task, send_message
 from ... import plugin_config as bilibili_config
 from ...utils import UID_ARG, get_share_click, handle_error, raise_for_status
+from . import templates
 from .config import Config
 from .models import Dynamic, Dynamics, Subscription
 
@@ -43,6 +46,10 @@ client = AsyncClient(
     cookies=bilibili_config.cookies,
     base_url="https://api.bilibili.com/x",
 )
+
+
+async def img_fetch_fn(url: str) -> bytes:
+    return (await client.get(url + "@.avif")).content
 
 
 class Cache:
@@ -82,7 +89,19 @@ async def get_dynamics(page: int = 1) -> Dynamics:
                 "type": "all",
                 "page": page,
                 "features": ",".join(
-                    ("itemOpusStyle", "listOnlyfans", "opusBigCover", "onlyfansVote")
+                    (
+                        "itemOpusStyle",
+                        "listOnlyfans",
+                        "opusBigCover",
+                        "onlyfansVote",
+                        "decorationCard",
+                        "onlyfansAssetsV2",
+                        "forwardListHidden",
+                        "ugcDelete",
+                        "onlyfansQaCard",
+                        "commentsNewVersion",
+                        "avatarAutoTheme",
+                    )
                 ),
             },
         )
@@ -163,7 +182,7 @@ async def render_screenshot(id_str: str) -> bytes:
         )
         await page.add_style_tag(
             content="""
-                * {
+                body {
                   font-family: "LXGW ZhenKai GB", "LXGW WenKai GB", sans-serif !important;
                 }
 
@@ -198,15 +217,37 @@ async def render_screenshot(id_str: str) -> bytes:
 async def broadcast(dynamics: list[Dynamic]):
     async with get_session() as session:
         for dynamic in dynamics:
-            screenshot, url, subs = await gather(
-                render_screenshot(dynamic["id_str"]),
-                get_share_click(dynamic["id_str"], "dynamic", "dt.dt-detail.0.0.pv"),
-                session.scalars(
-                    select(Subscription).where(
-                        Subscription.uid == dynamic["modules"]["module_author"]["mid"]
-                    )
-                ),
-            )
+            with as_file(files(templates)) as templates_path:
+                screenshot, url, subs = await gather(
+                    (
+                        template_to_pic(
+                            str(templates_path),
+                            "draw.html.j2",
+                            dynamic,
+                            max_width=360 * 3,
+                            device_height=640 * 3,
+                            img_fetch_fn=img_fetch_fn,
+                            allow_refit=False,
+                            image_format="jpeg",
+                            jpeg_quality=80,
+                        )
+                        if dynamic["type"] == "DYNAMIC_TYPE_WORD"
+                        or (
+                            dynamic["type"] == "DYNAMIC_TYPE_DRAW"
+                            and not dynamic["modules"]["module_dynamic"]["additional"]
+                        )
+                        else render_screenshot(dynamic["id_str"])
+                    ),
+                    get_share_click(
+                        dynamic["id_str"], "dynamic", "dt.dt-detail.0.0.pv"
+                    ),
+                    session.scalars(
+                        select(Subscription).where(
+                            Subscription.uid
+                            == dynamic["modules"]["module_author"]["mid"]
+                        )
+                    ),
+                )
 
             msg = plugin_config.template.format(
                 name=dynamic["modules"]["module_author"]["name"],
@@ -310,16 +351,52 @@ async def _(id_str: str):
         dynamic = raise_for_status(
             await client.get(
                 "/polymer/web-dynamic/v1/detail",
-                params={"id": id_str, "features": "itemOpusStyle"},
+                params={
+                    "id": id_str,
+                    "features": ",".join(
+                        (
+                            "itemOpusStyle",
+                            "listOnlyfans",
+                            "opusBigCover",
+                            "onlyfansVote",
+                            "decorationCard",
+                            "onlyfansAssetsV2",
+                            "forwardListHidden",
+                            "ugcDelete",
+                            "onlyfansQaCard",
+                            "commentsNewVersion",
+                            "avatarAutoTheme",
+                        )
+                    ),
+                },
             )
         )["item"]
     except Exception:
         await handle_error("获取动态信息失败")
 
-    screenshot, url = await gather(
-        render_screenshot(id_str),
-        get_share_click(id_str, "dynamic", "dt.dt-detail.0.0.pv"),
-    )
+    with as_file(files(templates)) as templates_path:
+        screenshot, url = await gather(
+            (
+                template_to_pic(
+                    str(templates_path),
+                    "draw.html.j2",
+                    dynamic,
+                    max_width=360 * 3,
+                    device_height=640 * 3,
+                    img_fetch_fn=img_fetch_fn,
+                    allow_refit=False,
+                    image_format="jpeg",
+                    jpeg_quality=80,
+                )
+                if dynamic["type"] == "DYNAMIC_TYPE_WORD"
+                or (
+                    dynamic["type"] == "DYNAMIC_TYPE_DRAW"
+                    and not dynamic["modules"]["module_dynamic"]["additional"]
+                )
+                else render_screenshot(dynamic["id_str"])
+            ),
+            get_share_click(id_str, "dynamic", "dt.dt-detail.0.0.pv"),
+        )
     await plugin_config.template.format(
         name=dynamic["modules"]["module_author"]["name"],
         action=dynamic["modules"]["module_author"]["pub_action"]
