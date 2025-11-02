@@ -1,9 +1,11 @@
 from asyncio import Task, create_task
 from collections.abc import Callable
+from contextlib import suppress
 from inspect import iscoroutine
 from typing import TYPE_CHECKING, Awaitable, TypeVar, cast
 
 from httpx import AsyncClient
+from nonebot.exception import ActionFailed
 from nonebot_plugin_alconna import AtAll, SupportAdapter, UniMessage
 from nonebot_plugin_alconna.uniseg import Receipt
 from nonebot_plugin_uninfo.orm import SceneModel, get_bot_model
@@ -43,15 +45,16 @@ async def send_message(scene_model: SceneModel, msg: UniMessage) -> Receipt:
     target = to_target(await scene_model.to_scene(), bot_model.scope, without_self=True)
     bot = bot_model.get_bot()
 
-    receipt = await msg.send(target, bot)
+    with suppress(ActionFailed):
+        receipt = await msg.send(target, bot)
 
-    if (
-        bot_model.adapter == SupportAdapter.milky
-        and cast("MessageResponse", receipt.msg_ids[0]).message_seq == 0
-    ):
-        receipt = await msg.exclude(AtAll).send(target, bot)
+        if not (
+            bot_model.adapter == SupportAdapter.milky
+            and cast("MessageResponse", receipt.msg_ids[0]).message_seq == 0
+        ):
+            return receipt
 
-    return receipt
+    return await msg.exclude(AtAll).send(target, bot)
 
 
 def with_prefix(prefix: str) -> Callable[[str], str]:
