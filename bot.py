@@ -1,10 +1,10 @@
 import nonebot
-from nonebot.adapters.milky import Adapter as NONEBOT_ADAPTER_MILKYAdapter
+from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
 
 nonebot.init()
 
 driver = nonebot.get_driver()
-driver.register_adapter(NONEBOT_ADAPTER_MILKYAdapter)
+driver.register_adapter(ONEBOT_V11Adapter)
 
 
 nonebot.load_from_toml("pyproject.toml")
